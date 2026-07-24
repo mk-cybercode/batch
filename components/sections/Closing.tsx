@@ -1,0 +1,72 @@
+import type { CSSProperties } from "react";
+import { Download } from "lucide-react";
+import Parallax from "@/components/fx/Parallax";
+import { asset, photo, CONTACT, PACK_PDF } from "@/lib/site";
+
+export default function Closing() {
+  return (
+    <section className="closing" id="contact">
+      <div className="closing-bg" aria-hidden="true">
+        <Parallax src={photo("shop-location")} speed={0.12} loading="lazy" />
+      </div>
+      <div className="closing-scrim" aria-hidden="true"></div>
+      <div className="closing-content">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          className="mark reveal"
+          src={asset("/assets/batch-logo-cream.png")}
+          alt="Batch. Gelato"
+        />
+        <h2 className="reveal" style={{ "--d": "120ms" } as CSSProperties}>
+          A high-margin food business, made for good moments and good
+          memories.
+        </h2>
+        <div className="closing-nums reveal" style={{ "--d": "220ms" } as CSSProperties}>
+          <div>
+            <b>
+              <span
+                data-count
+                data-value="320000"
+                data-prefix="R"
+                data-group
+                data-locale="en-US"
+              >
+                R320,000
+              </span>
+            </b>
+            <em>capital sought · Phase 1</em>
+          </div>
+          <div>
+            <b>
+              <span data-count data-value="67" data-suffix="%">
+                67%
+              </span>
+            </b>
+            <em>gross margin</em>
+          </div>
+          <div>
+            <b>Apr 2028</b>
+            <em>repaid in full by</em>
+          </div>
+        </div>
+        <div className="closing-actions reveal" style={{ "--d": "320ms" } as CSSProperties}>
+          <a className="btn btn--pistachio btn--lg" href={CONTACT.phoneHref}>
+            Call us · {CONTACT.phone}
+          </a>
+          <a
+            className="btn btn--outline-light btn--lg"
+            href={PACK_PDF}
+            target="_blank"
+            rel="noopener"
+          >
+            <Download aria-hidden="true" />
+            Investor information pack (PDF)
+          </a>
+        </div>
+        <p className="fine reveal" style={{ "--d": "400ms" } as CSSProperties}>
+          {CONTACT.phone} · {CONTACT.email} · {CONTACT.place}
+        </p>
+      </div>
+    </section>
+  );
+}
