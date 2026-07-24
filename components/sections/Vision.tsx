@@ -82,20 +82,6 @@ export default function Vision() {
             </div>
           </div>
         </div>
-        <div
-          className="photo photo--wipe reveal"
-          style={{
-            aspectRatio: "16 / 7.5",
-            marginTop: "clamp(36px, 4vw, 56px)",
-          }}
-        >
-          <Parallax
-            src={photo("shop-interior-counter")}
-            alt="Inside a Batch. gelato counter"
-            speed={0.08}
-          />
-          <span className="caption-chip">The counter, brought to life</span>
-        </div>
         <div className="towns" style={{ marginTop: "clamp(36px, 4vw, 56px)" }}>
           {towns.map((t, i) => (
             <span

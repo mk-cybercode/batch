@@ -1,5 +1,7 @@
 import type { CSSProperties } from "react";
 import SplitHeading from "@/components/fx/SplitHeading";
+import Parallax from "@/components/fx/Parallax";
+import { photo } from "@/lib/site";
 
 const channels = [
   {
@@ -56,6 +58,15 @@ export default function Channels() {
               <p>{c.body}</p>
             </div>
           ))}
+        </div>
+        <div className="photo photo--wipe band-photo reveal">
+          <Parallax
+            src={photo("packaging-tubs")}
+            alt="Batch. tub packaging across the flavour range"
+            speed={0.08}
+            loading="lazy"
+          />
+          <span className="caption-chip">Shelf-ready — simple tubs, healthy margins</span>
         </div>
         <p className="chan-note reveal">
           Direct and events carry the <em>margin</em>. Platform and stockists

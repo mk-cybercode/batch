@@ -1,6 +1,7 @@
 import type { CSSProperties } from "react";
 import { Download } from "lucide-react";
 import Parallax from "@/components/fx/Parallax";
+import WhatsAppIcon from "@/components/fx/WhatsAppIcon";
 import { asset, photo, CONTACT, PACK_PDF } from "@/lib/site";
 
 export default function Closing() {
@@ -50,18 +51,27 @@ export default function Closing() {
           </div>
         </div>
         <div className="closing-actions reveal" style={{ "--d": "320ms" } as CSSProperties}>
-          <a className="btn btn--pistachio btn--lg" href={CONTACT.phoneHref}>
-            Call us · {CONTACT.phone}
-          </a>
           <a
-            className="btn btn--outline-light btn--lg"
-            href={PACK_PDF}
+            className="btn btn--pistachio btn--lg"
+            href={CONTACT.whatsappHref}
             target="_blank"
             rel="noopener"
           >
-            <Download aria-hidden="true" />
-            Investor information pack (PDF)
+            <WhatsAppIcon />
+            WhatsApp us — I&rsquo;m interested
           </a>
+          <div className="action-col">
+            <a
+              className="btn btn--outline-light btn--lg"
+              href={PACK_PDF}
+              target="_blank"
+              rel="noopener"
+            >
+              <Download aria-hidden="true" />
+              Investor information pack (PDF)
+            </a>
+            <p className="btn-note">To access more detailed information</p>
+          </div>
         </div>
         <p className="fine reveal" style={{ "--d": "400ms" } as CSSProperties}>
           {CONTACT.phone} · {CONTACT.email} · {CONTACT.place}

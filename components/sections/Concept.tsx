@@ -1,5 +1,7 @@
 import type { CSSProperties } from "react";
 import SplitHeading from "@/components/fx/SplitHeading";
+import Parallax from "@/components/fx/Parallax";
+import { photo } from "@/lib/site";
 
 const cards = [
   {
@@ -47,6 +49,15 @@ export default function Concept() {
               <p>{c.body}</p>
             </div>
           ))}
+        </div>
+        <div className="photo photo--wipe band-photo reveal">
+          <Parallax
+            src={photo("tubs-table")}
+            alt="Batch. gelato tubs shared around a table"
+            speed={0.08}
+            loading="lazy"
+          />
+          <span className="caption-chip">Small batches, made to share</span>
         </div>
       </div>
     </section>

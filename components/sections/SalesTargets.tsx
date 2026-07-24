@@ -1,6 +1,7 @@
 import type { CSSProperties } from "react";
 import SplitHeading from "@/components/fx/SplitHeading";
-import { targetsYear1, targetsYear2, type TargetRow } from "@/lib/site";
+import Parallax from "@/components/fx/Parallax";
+import { photo, targetsYear1, targetsYear2, type TargetRow } from "@/lib/site";
 
 function TargetTable({ rows, label }: { rows: TargetRow[]; label: string }) {
   return (
@@ -39,12 +40,27 @@ export default function SalesTargets() {
         <div className="kicker-row reveal">
           <span className="overline">Monthly volume to hit repayment</span>
         </div>
-        <div className="section-head">
-          <SplitHeading text="Seasonal by design." />
-          <p className="lede reveal" style={{ "--d": "120ms" } as CSSProperties}>
-            Targets follow the Cape Town summer — a December trades at roughly
-            2.5× a July — and the repayment flexes with them, month by month.
-          </p>
+        <div className="targets-head">
+          <div className="section-head">
+            <SplitHeading text="Seasonal by design." />
+            <p className="lede reveal" style={{ "--d": "120ms" } as CSSProperties}>
+              Targets follow the Cape Town summer — a December trades at
+              roughly 2.5× a July — and the repayment flexes with them, month
+              by month.
+            </p>
+          </div>
+          <div
+            className="photo photo--wipe photo--tilt targets-photo reveal"
+            style={{ "--d": "180ms" } as CSSProperties}
+          >
+            <Parallax
+              src={photo("choc-pop")}
+              alt="A chocolate-dipped Batch. gelato pop"
+              speed={0.06}
+              loading="lazy"
+            />
+            <span className="caption-chip">Good moments, guaranteed</span>
+          </div>
         </div>
         <div className="targets-grid">
           <div className="reveal" style={{ "--d": "0ms" } as CSSProperties}>

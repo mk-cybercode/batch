@@ -598,6 +598,7 @@ section { position: relative; }
 .stage--later .item .bar i { background: var(--caramel); }
 .in .item .bar i { transform: scaleX(var(--w)); }
 .stage-note { margin-top: 20px; font-size: 12.5px; color: var(--ash); }
+.stage-photo { margin-top: 22px; aspect-ratio: 4 / 3.2; }
 .floor {
   margin-top: 26px; text-align: center;
   font-family: var(--font-display); font-weight: 700;
@@ -674,6 +675,26 @@ section { position: relative; }
   .photo-band .photo { aspect-ratio: 4 / 3; }
 }
 
+/* Full-width photo bands inside sections */
+.band-photo { aspect-ratio: 16 / 8; margin-top: clamp(36px, 4vw, 56px); }
+@media (max-width: 700px) { .band-photo { aspect-ratio: 4 / 3.2; } }
+
+/* Playful tilt — straightens and lifts on hover */
+.photo--tilt { rotate: -2deg; transition: rotate var(--dur-base) var(--ease-soft), transform var(--dur-base) var(--ease-soft), box-shadow var(--dur-base) ease; }
+@media (hover: hover) and (pointer: fine) {
+  .photo--tilt:hover { rotate: 0deg; transform: translateY(-4px); box-shadow: var(--shadow-md); }
+}
+@media (prefers-reduced-motion: reduce) { .photo--tilt { rotate: 0deg; transition: none; } }
+
+/* Sales-targets head: text left, playful photo right */
+.targets-head { display: grid; grid-template-columns: 1fr minmax(230px, 300px); gap: clamp(28px, 5vw, 72px); align-items: end; margin-bottom: clamp(36px, 5vw, 60px); }
+.targets-head .section-head { margin-bottom: 0; }
+.targets-photo { aspect-ratio: 4 / 5; }
+@media (max-width: 860px) {
+  .targets-head { grid-template-columns: 1fr; }
+  .targets-photo { max-width: 320px; }
+}
+
 /* ============================ Closing ============================ */
 .closing {
   position: relative; min-height: 96svh;
@@ -703,7 +724,9 @@ section { position: relative; }
 }
 .closing-nums div b { display: block; font-family: var(--font-display); font-weight: 800; font-size: clamp(34px, 4.4vw, 56px); color: var(--cream); line-height: 1; }
 .closing-nums div em { display: block; font-style: normal; font-size: 12.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--pistachio); margin-top: 10px; font-weight: 600; }
-.closing-actions { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; margin-top: 10px; }
+.closing-actions { display: flex; gap: 14px 18px; flex-wrap: wrap; justify-content: center; align-items: flex-start; margin-top: 10px; }
+.action-col { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.btn-note { font-size: 12px; color: rgba(242,239,231,.6); margin: 0; }
 .closing-content .fine { font-size: 13px; color: rgba(242,239,231,.65); margin: 0; }
 
 footer {

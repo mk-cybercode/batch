@@ -89,12 +89,22 @@ export default function Nav() {
               {l.label}
             </a>
           ))}
-          <a className="nav-contact-m" href={CONTACT.phoneHref}>
-            Contact · {CONTACT.phone}
+          <a
+            className="nav-contact-m"
+            href={CONTACT.whatsappHref}
+            target="_blank"
+            rel="noopener"
+          >
+            WhatsApp us · {CONTACT.phone}
           </a>
         </div>
         <div className="nav-cta">
-          <a className="btn btn--dark nav-contact" href={CONTACT.phoneHref}>
+          <a
+            className="btn btn--dark nav-contact"
+            href={CONTACT.whatsappHref}
+            target="_blank"
+            rel="noopener"
+          >
             Contact
           </a>
           <button

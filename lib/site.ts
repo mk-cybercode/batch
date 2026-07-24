@@ -6,6 +6,11 @@ export const asset = (path: string) => `${BASE}${path}`;
 export const CONTACT = {
   phone: "083 589 2747",
   phoneHref: "tel:0835892747",
+  whatsappHref:
+    "https://wa.me/27835892747?text=" +
+    encodeURIComponent(
+      "Hi! I saw the Batch. investor overview and I'm interested in investing."
+    ),
   email: "hello@batchgelato.com",
   place: "Cape Town, South Africa",
 };

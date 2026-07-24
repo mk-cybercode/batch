@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
-import { askNow, askLater } from "@/lib/site";
+import Parallax from "@/components/fx/Parallax";
+import { askNow, askLater, photo } from "@/lib/site";
 
 function Items({ items }: { items: { label: string; amount: string; w: number }[] }) {
   return (
@@ -71,6 +72,15 @@ export default function Ask() {
               consistent sales, event bookings turned away for capacity,
               stockists requesting more than can be supplied.
             </p>
+            <div className="photo photo--wipe photo--tilt stage-photo">
+              <Parallax
+                src={photo("phase2-cart")}
+                alt="The purpose-built Batch. market cart"
+                speed={0.06}
+                loading="lazy"
+              />
+              <span className="caption-chip">The Phase 2 market cart</span>
+            </div>
           </div>
         </div>
         <p className="floor reveal">
