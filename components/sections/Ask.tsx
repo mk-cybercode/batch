@@ -74,12 +74,11 @@ export default function Ask() {
             </p>
             <div className="photo photo--wipe photo--tilt stage-photo">
               <Parallax
-                src={photo("phase2-cart")}
+                src={photo("market-cart")}
                 alt="The purpose-built Batch. market cart"
                 speed={0.06}
                 loading="lazy"
               />
-              <span className="caption-chip">The Phase 2 market cart</span>
             </div>
           </div>
         </div>

@@ -15,7 +15,7 @@ export default function ProductFeature() {
       <div className="split-feature">
         <div className="photo photo--wipe reveal">
           <Parallax
-            src={photo("cup-and-cone")}
+            src={photo("cup-cone-pair")}
             alt="A Batch. gelato cup and cone, held side by side"
             speed={0.08}
           />

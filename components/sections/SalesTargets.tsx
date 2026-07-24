@@ -54,12 +54,11 @@ export default function SalesTargets() {
             style={{ "--d": "180ms" } as CSSProperties}
           >
             <Parallax
-              src={photo("choc-pop")}
+              src={photo("gelato-pop")}
               alt="A chocolate-dipped Batch. gelato pop"
               speed={0.06}
               loading="lazy"
             />
-            <span className="caption-chip">Good moments, guaranteed</span>
           </div>
         </div>
         <div className="targets-grid">

@@ -528,13 +528,6 @@ section { position: relative; }
 }
 .photo--wipe.in { clip-path: inset(0 0 0 0 round var(--radius-lg)); }
 .photo [data-parallax] { transform: translateY(0) scale(1.12); }
-.caption-chip {
-  position: absolute; left: 14px; bottom: 14px; z-index: 2;
-  padding: 7px 14px; border-radius: var(--radius-pill);
-  background: rgba(30,30,30,.55);
-  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
-  color: var(--cream); font-size: 12px; font-weight: 500;
-}
 .vision-photo { aspect-ratio: 4 / 4.4; }
 .margins { margin-top: 30px; display: grid; gap: 18px; }
 .mrow b { display: flex; justify-content: space-between; align-items: baseline; font-weight: 600; font-size: 14px; margin-bottom: 8px; }
@@ -598,7 +591,7 @@ section { position: relative; }
 .stage--later .item .bar i { background: var(--caramel); }
 .in .item .bar i { transform: scaleX(var(--w)); }
 .stage-note { margin-top: 20px; font-size: 12.5px; color: var(--ash); }
-.stage-photo { margin-top: 22px; aspect-ratio: 4 / 3.2; }
+.stage-photo { margin-top: 22px; aspect-ratio: 7 / 5; }
 .floor {
   margin-top: 26px; text-align: center;
   font-family: var(--font-display); font-weight: 700;
@@ -677,6 +670,8 @@ section { position: relative; }
 
 /* Full-width photo bands inside sections */
 .band-photo { aspect-ratio: 16 / 8; margin-top: clamp(36px, 4vw, 56px); }
+/* Narrower band — sized so the source image is never stretched past 1:1 pixels */
+.band-photo--narrow { max-width: 800px; margin-left: auto; margin-right: auto; aspect-ratio: 3 / 2; }
 @media (max-width: 700px) { .band-photo { aspect-ratio: 4 / 3.2; } }
 
 /* Playful tilt — straightens and lifts on hover */

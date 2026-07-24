@@ -61,12 +61,11 @@ export default function Channels() {
         </div>
         <div className="photo photo--wipe band-photo reveal">
           <Parallax
-            src={photo("packaging-tubs")}
+            src={photo("packaging-range")}
             alt="Batch. tub packaging across the flavour range"
             speed={0.08}
             loading="lazy"
           />
-          <span className="caption-chip">Shelf-ready — simple tubs, healthy margins</span>
         </div>
         <p className="chan-note reveal">
           Direct and events carry the <em>margin</em>. Platform and stockists

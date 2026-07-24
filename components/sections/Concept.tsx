@@ -50,14 +50,13 @@ export default function Concept() {
             </div>
           ))}
         </div>
-        <div className="photo photo--wipe band-photo reveal">
+        <div className="photo photo--wipe band-photo band-photo--narrow reveal">
           <Parallax
-            src={photo("tubs-table")}
+            src={photo("tubs-shared")}
             alt="Batch. gelato tubs shared around a table"
             speed={0.08}
             loading="lazy"
           />
-          <span className="caption-chip">Small batches, made to share</span>
         </div>
       </div>
     </section>

@@ -42,7 +42,6 @@ export default function Vision() {
               alt="Batch. gelato and coffee counter"
               speed={0.1}
             />
-            <span className="caption-chip">Gelato &amp; coffee, paired</span>
           </div>
           <div
             className="reveal"
