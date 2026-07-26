@@ -19,8 +19,8 @@ export default function Closing() {
           alt="Batch. Gelato"
         />
         <h2 className="reveal" style={{ "--d": "120ms" } as CSSProperties}>
-          A high-margin food business, made for good moments and good
-          memories.
+          A low-overhead way to establish a premium gelato brand in a market
+          that has repeatedly shown it will pay for quality.
         </h2>
         <div className="closing-nums reveal" style={{ "--d": "220ms" } as CSSProperties}>
           <div>
@@ -39,15 +39,15 @@ export default function Closing() {
           </div>
           <div>
             <b>
-              <span data-count data-value="67" data-suffix="%">
-                67%
+              <span data-count data-value="65" data-suffix="%">
+                65%
               </span>
             </b>
-            <em>gross margin</em>
+            <em>gross margin · 500ml tub</em>
           </div>
           <div>
-            <b>Apr 2028</b>
-            <em>repaid in full by</em>
+            <b>Aug 2028</b>
+            <em>loan repaid by</em>
           </div>
         </div>
         <div className="closing-actions reveal" style={{ "--d": "320ms" } as CSSProperties}>

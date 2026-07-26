@@ -7,14 +7,14 @@ export default function Footer() {
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={asset("/assets/batch-logo-cream.png")} alt="Batch." />
         <span>
-          Made in small batches<span className="dots"> •</span> Investor
-          overview, July 2026
+          Gelato made in small batches<span className="dots"> •</span> Investor
+          information pack, July 2026
         </span>
         <span>
           <a href={PACK_PDF} target="_blank" rel="noopener">
             Investor information pack (PDF)
           </a>{" "}
-          · Confidential — please don&rsquo;t circulate.
+          · Cape Town · Prepared by Muhammed Kolabhai
         </span>
       </div>
     </footer>

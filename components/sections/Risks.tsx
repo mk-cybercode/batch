@@ -9,9 +9,9 @@ export default function Risks() {
           className="kicker-row reveal"
           style={{ marginBottom: "clamp(28px, 4vw, 44px)" }}
         >
-          <span className="overline">Downside, handled</span>
+          <span className="overline">Risks and mitigation</span>
           <span className="section-index">
-            Each risk with a corresponding plan
+            Further risks will be added as market research is completed
           </span>
         </div>
         <div className="risks">

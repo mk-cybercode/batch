@@ -1,10 +1,10 @@
 import type { CSSProperties } from "react";
 
 const cells = [
-  { b: "R955,700", em: "turnover" },
-  { b: "R640,017", em: "gross profit · 67%" },
-  { b: "R210,000", em: "operating costs" },
-  { b: "2,515 L", em: "gelato sold · 5,030 tubs" },
+  { b: "R1,038,600", em: "turnover" },
+  { b: "R608,520", em: "gross profit · 59% blended" },
+  { b: "R167,200", em: "operating costs" },
+  { b: "2,070 L", em: "gelato sold · 4,140 tubs" },
 ];
 
 export default function FinancialSummary() {
@@ -13,24 +13,25 @@ export default function FinancialSummary() {
       <div className="container">
         <div className="be-center">
           <span className="overline reveal">
-            First 18 months · Dec 2026 – May 2028 · two summers
+            Financial projections · Nov 2026 – Aug 2028 · 22 months
           </span>
           <div className="big-num reveal" style={{ "--d": "100ms" } as CSSProperties}>
             <span
               data-count
-              data-value="430017"
+              data-value="441320"
               data-prefix="R"
               data-group
               data-locale="en-US"
             >
-              R430,017
+              R441,320
             </span>
             <small>net profit</small>
           </div>
           <p className="be-sub reveal" style={{ "--d": "220ms" } as CSSProperties}>
-            Two summers of trading — about 140 litres · 279 tubs a month.
+            Sales are expected to be modest and sporadic at first, while
+            packaging, flavours and operations are settled.
             <br />
-            <em>R320,000 repaid in full by April 2028</em> — R110,017 retained
+            <em>R320,000 repaid in full by August 2028</em> — R121,320 retained
             in the business.
           </p>
         </div>

@@ -1,21 +1,21 @@
 import type { CSSProperties } from "react";
 import SplitHeading from "@/components/fx/SplitHeading";
 
-const thesis = [
+const summary = [
   {
     num: "01",
-    title: "Near-zero fixed costs",
-    body: "Home production. No rent, no staff, no salary drawn — the operator keeps a full-time job throughout. The business can trade slowly, or pause, at almost no carrying cost.",
+    title: "A capital loan, not equity",
+    body: "This is a capital loan of R320,000, not an investment for a share of the business. The capital funds the equipment, ingredients, certification and brand work required to begin production and reach first sales, and is repaid in full from trading profit.",
   },
   {
     num: "02",
-    title: "Made ahead, frozen",
-    body: "Gelato is churned in batches and sold over the following weeks — about 9 hours of production a week in year one, rising to around 12 by the second summer. Not tied to daily demand, so it fits around a job and later makes each store simple to run.",
+    title: "The purpose of this phase",
+    body: "There is demand for good gelato in Cape Town — the question is which channel to build around. The options are events, a store, supplying larger businesses such as hotel groups, supplying stockists, or a combination of these. This phase reveals the strongest path before larger capital is committed.",
   },
   {
     num: "03",
-    title: "A hard downside floor",
-    body: "53% of the capital is one imported Italian machine with an established resale market. If demand never lands, the equipment is resold to recover most of the investment. Exposure is capped, not open-ended.",
+    title: "No salary is drawn",
+    body: "The operator retains full-time employment throughout Phase 1 and draws no salary from the business. This keeps fixed costs low and means the business can trade slowly, or pause, at minimal cost — the central reason the risk is contained.",
   },
 ];
 
@@ -24,20 +24,20 @@ export default function WhyModel() {
     <section className="section-pad section--inverse" id="why">
       <div className="container">
         <div className="kicker-row reveal">
-          <span className="overline">Why this model</span>
+          <span className="overline">Executive summary</span>
           <span className="section-index">02 / 07</span>
         </div>
         <div className="section-head">
-          <SplitHeading text="Built to be hard to lose on." />
+          <SplitHeading text="A limited cost and a limited risk." />
           <p className="lede reveal" style={{ "--d": "120ms" } as CSSProperties}>
-            Validate before scaling. Phase 1 proves the product and the demand
-            at minimal fixed cost — a store carries rent, staff and a larger
-            machine, and is justified only once the product has proven it
-            sells.
+            A store carries rent, staff and a substantially larger machine. It
+            is justified once the business has established its path and its
+            brand — not simply once a product has sold. This phase provides
+            that foundation.
           </p>
         </div>
         <div className="thesis">
-          {thesis.map((t, i) => (
+          {summary.map((t, i) => (
             <div
               className="thesis-item reveal"
               key={t.num}

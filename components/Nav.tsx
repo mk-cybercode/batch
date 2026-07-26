@@ -5,13 +5,13 @@ import { asset, CONTACT } from "@/lib/site";
 import { LOADED_EVENT } from "@/components/fx/Intro";
 
 const links = [
-  { href: "#concept", label: "Concept" },
-  { href: "#why", label: "Model" },
-  { href: "#flavours", label: "Flavours" },
-  { href: "#economics", label: "Economics" },
-  { href: "#channels", label: "Channels" },
-  { href: "#vision", label: "Vision" },
-  { href: "#ask", label: "The ask" },
+  { href: "#concept", label: "The business" },
+  { href: "#why", label: "Summary" },
+  { href: "#flavours", label: "The product" },
+  { href: "#economics", label: "Pricing" },
+  { href: "#channels", label: "Revenue" },
+  { href: "#plan", label: "Launch plan" },
+  { href: "#ask", label: "The capital" },
 ];
 
 /**

@@ -11,10 +11,9 @@ function TargetTable({ rows, label }: { rows: TargetRow[]; label: string }) {
         <thead>
           <tr>
             <th scope="col">Month</th>
-            <th scope="col">Tubs</th>
-            <th scope="col">Litres</th>
+            <th scope="col">Tubs (500ml eq.)</th>
             <th scope="col">Revenue</th>
-            <th scope="col">Repay</th>
+            <th scope="col">Repayment</th>
           </tr>
         </thead>
         <tbody>
@@ -22,9 +21,8 @@ function TargetTable({ rows, label }: { rows: TargetRow[]; label: string }) {
             <tr key={r.month} className={r.hi ? "hi" : undefined}>
               <td>{r.month}</td>
               <td>{r.tubs}</td>
-              <td>{r.litres}</td>
               <td>{r.revenue}</td>
-              <td className="repay">{r.repay}</td>
+              <td className={r.retained ? "retained" : "repay"}>{r.repay}</td>
             </tr>
           ))}
         </tbody>
@@ -38,15 +36,16 @@ export default function SalesTargets() {
     <section className="section-pad" id="targets">
       <div className="container">
         <div className="kicker-row reveal">
-          <span className="overline">Monthly volume to hit repayment</span>
+          <span className="overline">Monthly sales targets</span>
         </div>
         <div className="targets-head">
           <div className="section-head">
-            <SplitHeading text="Seasonal by design." />
+            <SplitHeading text="Repayment flexes with the season." />
             <p className="lede reveal" style={{ "--d": "120ms" } as CSSProperties}>
-              Targets follow the Cape Town summer — a December trades at
-              roughly 2.5× a July — and the repayment flexes with them, month
-              by month.
+              The figures show the most conservative expected volume, revenue
+              and repayment in each month. The first months — November 2026 to
+              March 2027 — are retained in the business; repayment begins in
+              April 2027.
             </p>
           </div>
           <div
@@ -63,17 +62,28 @@ export default function SalesTargets() {
         </div>
         <div className="targets-grid">
           <div className="reveal" style={{ "--d": "0ms" } as CSSProperties}>
-            <TargetTable rows={targetsYear1} label="Sales targets, December 2026 to August 2027" />
+            <TargetTable
+              rows={targetsYear1}
+              label="Monthly sales targets, November 2026 to September 2027"
+            />
           </div>
           <div className="reveal" style={{ "--d": "120ms" } as CSSProperties}>
-            <TargetTable rows={targetsYear2} label="Sales targets, September 2027 to May 2028" />
+            <TargetTable
+              rows={targetsYear2}
+              label="Monthly sales targets, October 2027 to August 2028"
+            />
           </div>
         </div>
+        <p className="targets-cap reveal">
+          † The final month settles the small remaining balance to clear the
+          loan in full by August 2028.
+        </p>
         <div className="repay-note reveal" style={{ "--d": "200ms" } as CSSProperties}>
-          <strong>Repayment structure:</strong> R12,000 minimum monthly, plus
-          60% of profit above that threshold. Payments start December 2026,
-          with full repayment by April 2028 — never demanding more than the
-          business has earned.
+          <strong>The repayment structure:</strong> a minimum of R12,000 per
+          month, plus 60% of any net profit above that minimum. Repayment
+          begins in April 2027 and, on the projected figures, clears the full
+          R320,000 by August 2028 — repayment never exceeds what the business
+          has earned.
         </div>
       </div>
     </section>

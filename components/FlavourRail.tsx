@@ -51,7 +51,7 @@ export default function FlavourRail() {
             <span className="section-index">03 / 07</span>
           </div>
           <h2 className="display" style={{ marginTop: 14 }}>
-            Eight flavours. No shortcuts.
+            Gelato made in small batches.
           </h2>
         </div>
         <motion.div className="rail-track" ref={trackRef} style={{ x }}>
@@ -68,11 +68,11 @@ export default function FlavourRail() {
           ))}
           <div className="rail-card rail-card--cap">
             <p>
-              Halaal certified.
+              Premium Italian
               <br />
-              Real ingredients.
+              ingredients and equipment.
               <br />
-              <em>Made in small batches.</em>
+              <em>Halaal certified.</em>
             </p>
           </div>
         </motion.div>

@@ -28,7 +28,7 @@ export default function Page() {
       <Nav />
       <Hero />
       <main>
-        <Marquee text="Small batch gelato makers" speed={-0.35} />
+        <Marquee text="Gelato made in small batches" speed={-0.35} />
         <Concept />
         <WhyModel />
         <FlavourRail />
@@ -38,7 +38,7 @@ export default function Page() {
         <SalesTargets />
         <Channels />
         <Timeline />
-        <Marquee text="Good moments. Good memories." speed={0.3} />
+        <Marquee text="Premium Italian ingredients and equipment" speed={0.3} />
         <Vision />
         <Ask />
         <Risks />

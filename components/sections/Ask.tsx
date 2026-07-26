@@ -1,8 +1,10 @@
 import type { CSSProperties } from "react";
 import Parallax from "@/components/fx/Parallax";
-import { askNow, askLater, photo } from "@/lib/site";
+import { capital, photo, secondPhase } from "@/lib/site";
 
-function Items({ items }: { items: { label: string; amount: string; w: number }[] }) {
+type Item = { label: string; amount: string; w: number; note?: string };
+
+function Items({ items }: { items: Item[] }) {
   return (
     <div className="items">
       {items.map((it, i) => (
@@ -13,9 +15,10 @@ function Items({ items }: { items: { label: string; amount: string; w: number }[
           </b>
           <div className="bar">
             <i
-              style={{ "--w": it.w, "--d": `${i * 90}ms` } as CSSProperties}
+              style={{ "--w": it.w, "--d": `${i * 70}ms` } as CSSProperties}
             ></i>
           </div>
+          {it.note && <small className="item-note">{it.note}</small>}
         </div>
       ))}
     </div>
@@ -27,7 +30,7 @@ export default function Ask() {
     <section className="section-pad" id="ask">
       <div className="container">
         <div className="ask-head">
-          <span className="overline reveal">The ask · Phase 1</span>
+          <span className="overline reveal">The capital · Phase 1</span>
           <div className="big-num reveal" style={{ "--d": "100ms" } as CSSProperties}>
             R
             <span data-count data-value="320" data-group>
@@ -36,23 +39,26 @@ export default function Ask() {
             <small>k</small>
           </div>
           <p className="ask-sub reveal" style={{ "--d": "200ms" } as CSSProperties}>
-            Everything required to begin. Repaid from trading profit — in full
-            by April 2028.
+            This funds everything needed to begin production and reach first
+            sales.
           </p>
         </div>
         <div className="stages" id="stages">
           <div className="stage reveal">
             <div className="stage-head">
               <h3>
-                What the capital buys
-                <small>Begin production</small>
+                Total capital required
+                <small>Phase 1</small>
               </h3>
               <b>R320,000</b>
             </div>
-            <Items items={askNow} />
+            <Items items={capital} />
             <p className="stage-note">
-              53% of the total is the gelato machine — the single asset that
-              makes production possible.
+              The single largest item is the batch freezer, which accounts for
+              53% of the total. The majority of the capital is spent on
+              equipment with a resale market — principally the Italian batch
+              freezer, an industrial machine that holds its value. Should the
+              business not proceed, it can be sold to recover part of the loan.
             </p>
           </div>
           <div
@@ -62,20 +68,22 @@ export default function Ask() {
             <div className="stage-head">
               <h3>
                 A possible second phase
-                <small>Only if growth outpaces projection</small>
+                <small>If pursued</small>
               </h3>
-              <b>R195,000</b>
+              <b>R200,000</b>
             </div>
-            <Items items={askLater} />
+            <Items items={secondPhase} />
             <p className="stage-note">
-              Not part of the current request. Pursued only on evidence —
-              consistent sales, event bookings turned away for capacity,
-              stockists requesting more than can be supplied.
+              A second phase is not part of the current request. It would be
+              pursued only if trading in Phase 1 demonstrates that expansion is
+              necessary — consistent sales, event bookings that must be turned
+              away for lack of a proper cart, and stockists requesting more
+              than can be supplied.
             </p>
             <div className="photo photo--wipe photo--tilt stage-photo">
               <Parallax
                 src={photo("market-cart")}
-                alt="The purpose-built Batch. market cart"
+                alt="A custom-build market cart with an integrated freezer"
                 speed={0.06}
                 loading="lazy"
               />
@@ -83,7 +91,9 @@ export default function Ask() {
           </div>
         </div>
         <p className="floor reveal">
-          Equipment retains resale value — <em>a floor under the investment.</em>
+          Only the batch freezer is a firm supplier quote. Other items are{" "}
+          <em>working estimates, to be confirmed with formal quotes</em> before
+          funds are drawn.
         </p>
       </div>
     </section>

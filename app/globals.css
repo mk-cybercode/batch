@@ -469,6 +469,7 @@ section { position: relative; }
 .ttable td:first-child { text-align: left; font-weight: 500; color: var(--licorice); }
 .ttable tr.hi td:first-child { font-family: var(--font-display); font-weight: 700; }
 .ttable td.repay { color: var(--pistachio-deep); font-weight: 600; }
+.ttable td.retained { color: var(--ash); font-style: italic; }
 .repay-note {
   margin-top: 22px; padding: 18px 24px; border-radius: var(--radius-md);
   background: var(--licorice); color: rgba(242,239,231,.85); font-size: 13.5px; line-height: 1.6;
@@ -498,6 +499,7 @@ section { position: relative; }
 .season .s-tag { font-size: 11px; font-weight: 600; letter-spacing: .18em; text-transform: uppercase; color: var(--ash); }
 .season h4 { margin: 12px 0 8px; font-family: var(--font-display); font-weight: 700; font-size: 22px; }
 .season p { margin: 0; font-size: 13.5px; color: var(--espresso); line-height: 1.55; }
+.season .s-tag + p { margin-top: 12px; }
 .season--dark { background: var(--licorice); border-color: var(--licorice); }
 .season--dark .s-tag { color: rgba(242,239,231,.55); }
 .season--dark h4 { color: var(--cream); }
@@ -590,6 +592,7 @@ section { position: relative; }
 }
 .stage--later .item .bar i { background: var(--caramel); }
 .in .item .bar i { transform: scaleX(var(--w)); }
+.item-note { display: block; margin-top: 6px; font-size: 11.5px; color: var(--ash); line-height: 1.5; }
 .stage-note { margin-top: 20px; font-size: 12.5px; color: var(--ash); }
 .stage-photo { margin-top: 22px; aspect-ratio: 7 / 5; }
 .floor {
@@ -633,6 +636,49 @@ section { position: relative; }
 .chan p { margin: 0; font-size: 13.5px; color: var(--espresso); line-height: 1.55; }
 .chan-note { margin-top: clamp(28px, 3vw, 42px); text-align: center; font-family: var(--font-display); font-weight: 700; font-size: clamp(17px, 2vw, 24px); }
 .chan-note em { font-style: normal; color: var(--pistachio-deep); }
+
+/* ============================ Profit per litre ============================ */
+.ppl {
+  background: var(--paper); border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg); box-shadow: var(--shadow-sm);
+  padding: clamp(24px, 3vw, 34px); margin-bottom: clamp(28px, 3vw, 40px);
+}
+.ppl-title {
+  display: block; font-size: 11px; font-weight: 600; letter-spacing: .18em;
+  text-transform: uppercase; color: var(--caramel-deep); margin-bottom: 22px;
+}
+.ppl-row {
+  display: grid; grid-template-columns: minmax(150px, 210px) 1fr auto;
+  align-items: center; gap: 16px; padding: 7px 0;
+}
+.ppl-label { font-size: 13.5px; color: var(--espresso); line-height: 1.35; }
+.ppl-track {
+  position: relative; height: 22px; border-radius: var(--radius-pill);
+  background: var(--sand); overflow: hidden;
+}
+.ppl-fill {
+  position: absolute; inset: 0; border-radius: var(--radius-pill);
+  transform: scaleX(0); transform-origin: 0 50%;
+  transition: transform 1000ms var(--ease-out); transition-delay: var(--d, 0ms);
+  will-change: transform;
+}
+.in .ppl-fill { transform: scaleX(var(--w)); }
+.ppl-fill--deep { background: var(--pistachio-deep); }
+.ppl-fill--mid { background: var(--pistachio); }
+.ppl-fill--caramel { background: var(--caramel); }
+.ppl-fill--caramel-deep { background: var(--caramel-deep); }
+.ppl-value {
+  font-family: var(--font-display); font-weight: 800; font-size: 17px;
+  min-width: 62px; text-align: right; font-variant-numeric: tabular-nums;
+}
+.ppl-note { margin: 20px 0 0; padding-top: 16px; border-top: 1px solid var(--border-subtle); font-size: 12.5px; color: var(--ash); line-height: 1.55; }
+@media (max-width: 640px) {
+  /* Label and value share the first row; the bar spans the full width beneath. */
+  .ppl-row { grid-template-columns: 1fr auto; gap: 6px 12px; padding: 10px 0; }
+  .ppl-label { grid-column: 1; grid-row: 1; }
+  .ppl-value { grid-column: 2; grid-row: 1; min-width: 0; }
+  .ppl-track { grid-column: 1 / -1; grid-row: 2; height: 16px; }
+}
 
 /* econ insight callout */
 .econ-insight {
@@ -687,7 +733,7 @@ section { position: relative; }
 .targets-photo { aspect-ratio: 4 / 5; }
 @media (max-width: 860px) {
   .targets-head { grid-template-columns: 1fr; }
-  .targets-photo { max-width: 320px; }
+  .targets-photo { max-width: 280px; margin: 0 auto; aspect-ratio: 4 / 4.4; }
 }
 
 /* ============================ Closing ============================ */

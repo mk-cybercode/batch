@@ -6,18 +6,18 @@ import { photo } from "@/lib/site";
 const cards = [
   {
     num: "01",
-    title: "What",
-    body: "Small-batch gelato made with Italian ingredients and equipment — machinery, flavour bases and a consulting chef through one supplier. Sold in 500ml tubs, with smaller cups for markets and events.",
+    title: "What it is",
+    body: "BATCH. intends to produce gelato in small batches and sell it directly to the public and to retailers. The recipes, machinery and flavour bases are sourced from Italy through a single South African supplier, which also provides equipment training and access to a consulting chef for recipe development.",
   },
   {
     num: "02",
-    title: "How it starts",
-    body: "Production runs from a home kitchen on a single commercial machine — made in advance, frozen, and sold through four channels: direct online, Uber Eats, stockists and markets.",
+    title: "How it operates",
+    body: "Production takes place in a home kitchen on one commercial batch freezer. Gelato is made in advance, frozen, and sold over the following weeks — it is not made to daily order. Production is scheduled into evenings and weekends rather than tied to trading hours.",
   },
   {
     num: "03",
-    title: "Where it goes",
-    body: "A gelato & coffee store in a high foot-traffic location — and in time, a small group of stores supplied by one central kitchen.",
+    title: "Where it is going",
+    body: "The long-term objective is a gelato and coffee store, and ultimately a group of stores supplied by one central kitchen. The business starts at a modest scale with the ambition of scaling into a substantial brand.",
   },
 ];
 
@@ -30,11 +30,16 @@ export default function Concept() {
     >
       <div className="container">
         <div className="kicker-row reveal">
-          <span className="overline">The concept</span>
+          <span className="overline">The business</span>
           <span className="section-index">01 / 07</span>
         </div>
         <div className="section-head">
-          <SplitHeading text="Learn the craft. Prove the demand. Then build the brand." />
+          <SplitHeading text="Establishing a premium gelato brand at reduced risk, before scaling." />
+          <p className="lede reveal" style={{ "--d": "120ms" } as CSSProperties}>
+            Gelato is a more premium product than ice cream — it is churned at a
+            slower speed and served at a slightly warmer temperature, which
+            gives a denser texture and a more intense flavour.
+          </p>
         </div>
         <div className="concept-grid">
           {cards.map((c, i) => (
@@ -53,7 +58,7 @@ export default function Concept() {
         <div className="photo photo--wipe band-photo band-photo--narrow reveal">
           <Parallax
             src={photo("tubs-shared")}
-            alt="Batch. gelato tubs shared around a table"
+            alt="Batch. gelato tubs and flavours"
             speed={0.08}
             loading="lazy"
           />

@@ -39,7 +39,7 @@ export default function Hero() {
       <div className="hero-scrim" aria-hidden="true"></div>
       <motion.div className="hero-content" style={{ y, opacity }}>
         <span className="overline" data-stage="1">
-          Small batch gelato makers
+          Gelato made in small batches
         </span>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
@@ -49,10 +49,10 @@ export default function Hero() {
           data-stage="2"
         />
         <p className="hero-line" data-stage="3">
-          Small batches, big memories.
+          Establishing a premium gelato brand at reduced risk, before scaling.
         </p>
         <div className="hero-meta" data-stage="4">
-          <span>Investor overview</span>
+          <span>Investor information pack</span>
           <span className="dot"></span>
           <span>July 2026</span>
           <span className="dot"></span>

@@ -4,13 +4,14 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://mk-cybercode.github.io"),
-  title: "Batch. — Investor overview",
-  description: "Batch. Gelato — investor overview, July 2026.",
+  title: "Batch. — Investor information pack",
+  description:
+    "Batch. Gelato — investor information pack, Cape Town, July 2026. Establishing a premium gelato brand at reduced risk, before scaling.",
   icons: { icon: asset("/assets/batch-logo-black.png") },
   openGraph: {
-    title: "Batch. — Investor overview",
+    title: "Batch. — Investor information pack",
     description:
-      "Small batches, big memories. Batch. Gelato — investor overview, July 2026, Cape Town.",
+      "Gelato made in small batches. Batch. Gelato — investor information pack, Cape Town, July 2026.",
     images: [asset("/assets/salt-caramel.webp")],
   },
 };
