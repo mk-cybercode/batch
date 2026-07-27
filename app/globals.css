@@ -603,12 +603,22 @@ section { position: relative; }
 .floor em { font-style: normal; color: var(--pistachio-deep); }
 
 /* ============================ Risk strip ============================ */
-.risks { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; row-gap: clamp(28px, 4vw, 44px); }
+/* Two columns rather than four: the mitigations are prose, and they need
+   the measure to stay readable. */
+.risks { display: grid; grid-template-columns: repeat(2, 1fr); gap: clamp(24px, 3vw, 40px); }
 .risk {
-  border-top: 2px solid var(--licorice); padding-top: 18px;
+  border-top: 2px solid var(--licorice); padding-top: 20px;
 }
-.risk b { display: block; font-family: var(--font-display); font-weight: 700; font-size: 17px; margin-bottom: 6px; }
-.risk p { margin: 0; font-size: 13px; color: var(--espresso); line-height: 1.55; }
+.risk b {
+  display: block; font-family: var(--font-display); font-weight: 800;
+  font-size: clamp(19px, 1.9vw, 24px); line-height: 1.2;
+  letter-spacing: -0.01em; color: var(--licorice); margin-bottom: 12px;
+}
+.risk .risk-label {
+  display: block; font-size: 10.5px; font-weight: 600; letter-spacing: .18em;
+  text-transform: uppercase; color: var(--caramel-deep); margin-bottom: 6px;
+}
+.risk p { margin: 0; font-size: 15px; color: var(--espresso); line-height: 1.65; max-width: 54ch; }
 
 /* ============================ Why-this-model thesis (dark) ============================ */
 .thesis { display: grid; grid-template-columns: repeat(3, 1fr); gap: clamp(24px, 3vw, 48px); margin-top: clamp(36px, 4vw, 56px); }
@@ -810,9 +820,13 @@ footer {
   .thesis { grid-template-columns: 1fr; }
   .chan-grid { grid-template-columns: repeat(2, 1fr); }
 }
-@media (max-width: 760px) { .seasons--six { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 760px) {
+  .seasons--six { grid-template-columns: repeat(2, 1fr); }
+  /* Single column early — two columns of prose get too narrow to read. */
+  .risks { grid-template-columns: 1fr; }
+}
 @media (max-width: 560px) {
-  .seasons, .seasons--six, .risks, .be-row, .chan-grid { grid-template-columns: 1fr; }
+  .seasons, .seasons--six, .be-row, .chan-grid { grid-template-columns: 1fr; }
 }
 
 /* ============================ Reduced motion ============================ */

@@ -58,7 +58,7 @@ export default function Closing() {
             rel="noopener"
           >
             <WhatsAppIcon />
-            WhatsApp us — I&rsquo;m interested
+            I&rsquo;m Interested!
           </a>
           <div className="action-col">
             <a

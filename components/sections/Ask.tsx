@@ -91,7 +91,7 @@ export default function Ask() {
           </div>
         </div>
         <p className="floor reveal">
-          Only the batch freezer is a firm supplier quote. Other items are{" "}
+          Only the blast freezer pricing is confirmed. Other items are{" "}
           <em>working estimates, to be confirmed with formal quotes</em> before
           funds are drawn.
         </p>

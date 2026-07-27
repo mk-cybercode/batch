@@ -19,9 +19,10 @@ export default function Risks() {
             <div
               className="risk reveal"
               key={r.title}
-              style={{ "--d": `${(i % 4) * 90}ms` } as CSSProperties}
+              style={{ "--d": `${(i % 2) * 110}ms` } as CSSProperties}
             >
               <b>{r.title}</b>
+              <span className="risk-label">Mitigation</span>
               <p>{r.body}</p>
             </div>
           ))}
