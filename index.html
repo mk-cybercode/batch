@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="en-ZA">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>BATCH. Industry Insights Survey</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --cream:#FAF5EC;
+    --oat:#F3E9D7;
+    --oat-line:#E4D6BD;
+    --caramel:#C0853E;
+    --caramel-deep:#A96F2D;
+    --pistachio:#A7C888;
+    --pistachio-glow:rgba(157,199,120,.55);
+    --ink:#3A322A;
+    --ink-soft:#6E6255;
+    --white:#FFFFFF;
+    --radius:16px;
+    --shadow:0 2px 10px rgba(75,58,32,.06);
+    --shadow-lift:0 6px 22px rgba(75,58,32,.10);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0;
+    font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+    background:var(--cream);
+    color:var(--ink);
+    line-height:1.55;
+    font-size:16px;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  /* Progress bar */
+  #progressWrap{
+    position:fixed;top:0;left:0;right:0;height:5px;
+    background:rgba(228,214,189,.5);
+    z-index:60;
+  }
+  #progressBar{
+    height:100%;width:0%;
+    background:linear-gradient(90deg,var(--caramel),var(--caramel-deep));
+    transition:width .12s linear;
+    border-radius:0 3px 3px 0;
+  }
+
+  .wrap{
+    max-width:640px;
+    margin:0 auto;
+    padding:0 16px 64px;
+  }
+
+  /* Intro */
+  header.intro{
+    padding:52px 4px 8px;
+    text-align:left;
+  }
+  .brand{
+    font-weight:700;
+    font-size:2rem;
+    letter-spacing:-.02em;
+    margin:0 0 4px;
+    line-height:1.1;
+  }
+  .brand .dot{color:var(--caramel);}
+  .brand-sub{
+    font-weight:600;
+    font-size:1.05rem;
+    color:var(--ink-soft);
+    margin:0 0 22px;
+  }
+  .intro p{
+    margin:0 0 16px;
+    color:var(--ink-soft);
+    font-size:1rem;
+  }
+  .intro p.lead{color:var(--ink);}
+
+  /* Section subheadings */
+  .section-head{
+    margin:40px 4px 14px;
+    padding-top:8px;
+  }
+  .section-kicker{
+    display:inline-block;
+    font-size:.72rem;
+    font-weight:600;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    color:var(--caramel-deep);
+    background:rgba(192,133,62,.10);
+    padding:4px 10px;
+    border-radius:999px;
+    margin-bottom:8px;
+  }
+  .section-head h2{
+    margin:0;
+    font-size:1.3rem;
+    font-weight:700;
+    letter-spacing:-.01em;
+  }
+
+  /* Cards */
+  .card{
+    background:var(--oat);
+    border:1px solid var(--oat-line);
+    border-radius:var(--radius);
+    padding:20px 18px;
+    margin:14px 0;
+    box-shadow:var(--shadow);
+    opacity:1;
+    transform:none;
+  }
+  .anim .card{
+    opacity:0;
+    transform:translateY(18px);
+    transition:opacity .5s ease,transform .5s ease;
+  }
+  .anim .card.in{
+    opacity:1;
+    transform:translateY(0);
+  }
+  .q-label{
+    display:block;
+    font-weight:600;
+    font-size:1rem;
+    margin-bottom:14px;
+    color:var(--ink);
+  }
+  .q-num{
+    color:var(--caramel-deep);
+    font-weight:700;
+    margin-right:6px;
+  }
+
+  /* Chip options */
+  .options{display:flex;flex-direction:column;gap:9px;}
+  .chip{
+    display:flex;align-items:center;gap:12px;
+    background:var(--white);
+    border:1.5px solid var(--oat-line);
+    border-radius:12px;
+    padding:13px 14px;
+    cursor:pointer;
+    font-size:.98rem;
+    transition:border-color .15s ease,background .15s ease,transform .06s ease;
+    user-select:none;
+  }
+  .chip:active{transform:scale(.985);}
+  .chip .box{
+    flex:0 0 auto;
+    width:22px;height:22px;
+    border:2px solid var(--oat-line);
+    background:var(--white);
+    display:flex;align-items:center;justify-content:center;
+    transition:border-color .15s,background .15s;
+  }
+  .chip.radio .box{border-radius:50%;}
+  .chip.check .box{border-radius:6px;}
+  .chip .box svg{width:13px;height:13px;opacity:0;transform:scale(.5);transition:opacity .15s,transform .15s;}
+  .chip input{position:absolute;opacity:0;width:0;height:0;pointer-events:none;}
+  .chip.sel{border-color:var(--caramel);background:rgba(192,133,62,.08);}
+  .chip.sel .box{border-color:var(--caramel);background:var(--caramel);}
+  .chip.sel .box svg{opacity:1;transform:scale(1);}
+  .chip .txt{flex:1;}
+
+  /* Other free-text inline */
+  .other-field{margin-top:2px;}
+
+  /* Scale */
+  .scale{display:flex;gap:8px;justify-content:space-between;}
+  .scale .chip{flex:1;justify-content:center;flex-direction:column;gap:2px;padding:12px 6px;text-align:center;}
+  .scale .chip .n{font-size:1.15rem;font-weight:700;}
+  .scale-labels{display:flex;justify-content:space-between;font-size:.78rem;color:var(--ink-soft);margin-top:8px;}
+
+  /* Text fields */
+  .field-wrap{position:relative;}
+  textarea,input[type="text"],input[type="number"]{
+    width:100%;
+    font-family:inherit;
+    font-size:1rem;
+    color:var(--ink);
+    background:var(--white);
+    border:1.5px solid var(--oat-line);
+    border-radius:12px;
+    padding:13px 46px 13px 14px;
+    resize:vertical;
+    transition:border-color .15s;
+  }
+  textarea{min-height:64px;line-height:1.5;}
+  textarea.tall{min-height:96px;}
+  input:focus,textarea:focus{outline:none;border-color:var(--caramel);}
+
+  /* Mic button */
+  .mic{
+    position:absolute;
+    top:9px;right:9px;
+    width:34px;height:34px;
+    border-radius:50%;
+    border:1.5px solid var(--oat-line);
+    background:var(--white);
+    display:flex;align-items:center;justify-content:center;
+    cursor:pointer;
+    padding:0;
+    transition:border-color .15s,box-shadow .2s,background .15s;
+  }
+  .mic svg{width:17px;height:17px;color:var(--ink-soft);}
+  .mic:active{transform:scale(.94);}
+  .mic.listening{
+    border-color:var(--pistachio);
+    background:rgba(157,199,120,.16);
+    box-shadow:0 0 0 0 var(--pistachio-glow);
+    animation:pulse 1.4s ease-out infinite;
+  }
+  .mic.listening svg{color:#5c7a3a;}
+  @keyframes pulse{
+    0%{box-shadow:0 0 0 0 var(--pistachio-glow);}
+    70%{box-shadow:0 0 0 10px rgba(157,199,120,0);}
+    100%{box-shadow:0 0 0 0 rgba(157,199,120,0);}
+  }
+  .mic-tip{
+    font-size:.8rem;color:var(--ink-soft);margin-top:8px;font-style:italic;
+    display:none;
+  }
+  .no-speech .mic-tip{display:block;}
+  .no-speech .mic{display:none;}
+
+  /* Comment toggle */
+  .comment{margin-top:14px;}
+  .comment-toggle{
+    background:none;border:none;
+    color:var(--caramel-deep);
+    font-family:inherit;font-size:.88rem;font-weight:600;
+    cursor:pointer;padding:4px 0;
+    display:inline-flex;align-items:center;gap:6px;
+  }
+  .comment-toggle .plus{
+    font-size:1.05rem;line-height:1;transition:transform .25s ease;display:inline-block;
+  }
+  .comment-toggle.open .plus{transform:rotate(45deg);}
+  .comment-body{
+    max-height:0;overflow:hidden;
+    transition:max-height .3s ease,margin-top .3s ease;
+    margin-top:0;
+  }
+  .comment-body.open{margin-top:10px;}
+
+  /* Percentage split (Q3) */
+  .split-row{display:flex;align-items:center;gap:12px;margin-bottom:12px;}
+  .split-row label{flex:1;font-size:.95rem;color:var(--ink);}
+  .split-input{position:relative;flex:0 0 92px;}
+  .split-input input{padding-right:30px;text-align:right;}
+  .split-input .pct{position:absolute;right:12px;top:50%;transform:translateY(-50%);color:var(--ink-soft);}
+  .split-total{
+    display:flex;justify-content:space-between;align-items:center;
+    font-size:.92rem;font-weight:600;margin-top:4px;
+    padding:10px 12px;border-radius:10px;background:rgba(192,133,62,.08);
+  }
+  .split-total .val{font-size:1.05rem;}
+
+  /* Number prefix (Q36) */
+  .prefixed{position:relative;max-width:200px;}
+  .prefixed .prefix{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--ink-soft);font-weight:600;}
+  .prefixed input{padding-left:28px;}
+
+  /* Ranking (Q26) */
+  .rank-row{
+    display:flex;align-items:center;gap:12px;
+    background:var(--white);border:1.5px solid var(--oat-line);
+    border-radius:12px;padding:11px 13px;margin-bottom:9px;
+  }
+  .rank-row .name{flex:1;font-size:.97rem;}
+  .rank-row select{
+    font-family:inherit;font-size:.95rem;
+    border:1.5px solid var(--oat-line);border-radius:9px;
+    padding:8px 10px;background:var(--white);color:var(--ink);
+    min-width:104px;
+  }
+  .rank-row select:focus{outline:none;border-color:var(--caramel);}
+
+  /* Rows single (Q32) */
+  .matrix-row{margin-bottom:16px;}
+  .matrix-row:last-child{margin-bottom:0;}
+  .matrix-label{font-weight:600;font-size:.95rem;margin-bottom:8px;}
+  .matrix-opts{display:flex;gap:8px;}
+  .matrix-opts .chip{flex:1;justify-content:center;padding:11px 4px;text-align:center;}
+
+  /* Submit */
+  .submit-area{margin-top:36px;text-align:center;}
+  #submitBtn{
+    width:100%;
+    background:linear-gradient(180deg,var(--caramel),var(--caramel-deep));
+    color:#fff;border:none;
+    font-family:inherit;font-size:1.15rem;font-weight:700;
+    padding:18px;border-radius:14px;cursor:pointer;
+    box-shadow:var(--shadow-lift);
+    transition:transform .08s ease,filter .15s;
+    letter-spacing:.01em;
+  }
+  #submitBtn:active{transform:scale(.99);}
+  #submitBtn:disabled{filter:saturate(.5) brightness(1.05);cursor:default;}
+  .submit-note{font-size:.85rem;color:var(--ink-soft);margin-top:14px;}
+  .submit-error{
+    display:none;color:#a4442f;font-size:.92rem;margin-top:14px;font-weight:500;
+    background:rgba(164,68,47,.08);border-radius:10px;padding:12px;
+  }
+  .submit-error.show{display:block;}
+
+  /* Modal */
+  .overlay{
+    position:fixed;inset:0;background:rgba(58,50,42,.55);
+    display:none;align-items:center;justify-content:center;
+    z-index:100;padding:24px;
+    opacity:0;transition:opacity .25s ease;
+  }
+  .overlay.show{display:flex;opacity:1;}
+  .modal{
+    background:var(--cream);border-radius:20px;
+    max-width:400px;width:100%;padding:34px 26px 28px;text-align:center;
+    box-shadow:0 20px 60px rgba(0,0,0,.3);
+    transform:translateY(14px) scale(.98);
+    transition:transform .28s ease;
+  }
+  .overlay.show .modal{transform:translateY(0) scale(1);}
+  .modal .tick{
+    width:58px;height:58px;border-radius:50%;
+    background:var(--pistachio);
+    display:flex;align-items:center;justify-content:center;
+    margin:0 auto 18px;
+  }
+  .modal .tick svg{width:30px;height:30px;color:#fff;}
+  .modal h3{margin:0 0 10px;font-size:1.35rem;font-weight:700;}
+  .modal p{margin:0 0 22px;color:var(--ink-soft);font-size:.98rem;}
+  .modal button{
+    background:linear-gradient(180deg,var(--caramel),var(--caramel-deep));
+    color:#fff;border:none;font-family:inherit;font-size:1rem;font-weight:600;
+    padding:13px 34px;border-radius:12px;cursor:pointer;
+  }
+  .modal button:active{transform:scale(.98);}
+
+  @media (min-width:560px){
+    .wrap{padding:0 20px 80px;}
+    .brand{font-size:2.4rem;}
+    .card{padding:24px 22px;}
+  }
+
+  @media (prefers-reduced-motion:reduce){
+    html{scroll-behavior:auto;}
+    *{animation:none !important;transition:none !important;}
+    .anim .card{opacity:1;transform:none;}
+  }
+</style>
+</head>
+<body>
+
+<div id="progressWrap"><div id="progressBar"></div></div>
+
+<div class="wrap">
+  <header class="intro">
+    <h1 class="brand">BATCH<span class="dot">.</span></h1>
+    <p class="brand-sub">Industry Insights Survey</p>
+    <p class="lead">We're in the process of launching a small gelato business in Cape Town and would value learning from your experience. The purpose of this survey is to understand the realities of the industry and to sense-check some of the assumptions in our business plan.</p>
+    <p>It should take around 5–10 minutes. Most questions are multiple choice. For any open-ended questions you can use the built-in speech-to-text button if that's easier than typing. Feel free to skip any question that doesn't apply or that you'd rather not answer- All responses will be kept strictly confidential.</p>
+    <p>When you're done, press Submit at the bottom so we can capture your insights. Thank you for your time and for sharing what you've learned.</p>
+  </header>
+
+  <form id="survey" autocomplete="off">
+    <div id="questions"></div>
+
+    <div class="submit-area">
+      <button type="submit" id="submitBtn">Submit</button>
+      <p class="submit-note">Nothing you share will be published. Thank you.</p>
+      <div class="submit-error" id="submitError">That didn't go through. Your answers are still here — please tap Submit to try again.</div>
+    </div>
+  </form>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="tick"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></div>
+    <h3 id="modalTitle">Got it — thank you.</h3>
+    <p>Your responses have been captured successfully. We really appreciate you taking the time to share your experience.</p>
+    <button type="button" id="modalClose">Close</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------- Survey definition ---------- */
+  var sections = [
+    { title:"About your business", questions:[
+      { id:"q1", type:"single", label:"How long have you been in the gelato industry?",
+        options:["Less than 2 years","2–5 years","5–10 years","More than 10 years"] },
+      { id:"q2", type:"multi", label:"Which sales channels make up most of your revenue?",
+        options:["Own store","Markets","Events","Uber Eats","Mr D","Wholesale to cafés & restaurants","Retail stockists","Corporate clients","Other (free text)"] },
+      { id:"q3", type:"split", label:"Roughly how does your revenue split across product sizes?",
+        rows:["Small / single-serving size","Medium (2–3 servings)","Large (500ml or bigger)"] }
+    ]},
+    { title:"Starting the business", questions:[
+      { id:"q4", type:"text", label:"Looking back, what was your biggest challenge in the first year?" },
+      { id:"q5", type:"multi", label:"Which of these did you buy after launch that you wish you'd had from day one?",
+        options:["Blast freezer","Larger or second batch freezer","Display or dipping cabinet","Transport freezer or cold box","Dedicated vehicle","Extra storage freezers","Pasteuriser","Other (free text)"] },
+      { id:"q6", type:"multi", label:"Which areas turned out harder than you expected?",
+        options:["Cash flow","Production","Marketing","Finding customers","Staffing","Packaging","Food safety compliance","Equipment","Deliveries","Managing stock"] },
+      { id:"q7", type:"text", label:"Which cost surprised you the most?" },
+      { id:"q8", type:"text", label:"What would you do differently if you were starting again?" },
+      { id:"q9", type:"text", label:"What assumption did you make before starting that turned out to be completely wrong?" }
+    ]},
+    { title:"The market", questions:[
+      { id:"q10", type:"text", label:"Which flavours consistently sell the best?" },
+      { id:"q11", type:"text", label:"Which flavours sound exciting but don't actually sell well?" },
+      { id:"q12", type:"single", label:"How many core flavours would you recommend launching with?",
+        options:["4–6","6–8","8–10","More than 10"] },
+      { id:"q13", type:"single", label:"How often do you introduce new flavours?",
+        options:["Monthly","Seasonally","Only occasionally"] },
+      { id:"q14", type:"scale", label:"How price-sensitive are your customers?",
+        low:"Not at all", high:"Very" },
+      { id:"q15", type:"single", label:"Are customers willing to pay more for higher-quality ingredients?",
+        options:["Yes","Sometimes","Rarely"] }
+    ]},
+    { title:"Cold chain & packaging", questions:[
+      { id:"q16", type:"text", label:"To balance performance and cost, what packaging do you prefer for scoops and tubs?" },
+      { id:"q17", type:"multi", label:"For deliveries or pick-up orders, what do you include to help hold temperature?",
+        options:["Dry ice","Ice packs","Insulated bags","Nothing"] },
+      { id:"q18", type:"single", label:"Is dry ice an expensive cost driver for you?",
+        options:["Yes","Somewhat","No","We don't use it"] },
+      { id:"q19", type:"multi", label:"What has been your biggest cold-chain challenge?",
+        options:["Delivery times","Packaging","Driver handling","Customer delays","Freezer storage","Summer temperatures","Retail stockists"] },
+      { id:"q20", type:"single", label:"Have customers ever complained about melting or texture changes?",
+        options:["Frequently","Occasionally","Rarely","Never"] },
+      { id:"q21", type:"text", label:"Any advice for someone starting from a home kitchen on keeping product quality up?" }
+    ]},
+    { title:"Production & operations", questions:[
+      { id:"q22", type:"single", label:"What percentage of product is typically lost to wastage?",
+        options:["Under 5%","5–10%","10–15%","More than 15%"] },
+      { id:"q23", type:"multi", label:"What is your biggest operational bottleneck?",
+        options:["Production","Storage","Staffing","Deliveries","Sales","Marketing"] },
+      { id:"q24", type:"text", label:"Which piece of equipment has been your best investment?" },
+      { id:"q25", type:"text", label:"Which purchase do you regret?" }
+    ]},
+    { title:"Sales channels", questions:[
+      { id:"q26", type:"rank", label:"Rank these from most profitable to least profitable. (1 = most profitable; duplicates allowed, items can be left unranked.)",
+        items:["Direct sales","Events","Markets","Uber Eats","Wholesale","Retail stockists"] },
+      { id:"q27", type:"single", label:"Which channel would you focus on first if you were starting again?",
+        options:["Direct sales","Events","Markets","Uber Eats","Wholesale","Retail stockists"] },
+      { id:"q28", type:"single", label:"What gross profit margin should a new operator aim for?",
+        options:["Around 50%","55–60%","60–65%","65–70%","Above 70%"] },
+      { id:"q29", type:"single", label:"Are markets worthwhile?",
+        options:["Yes","Mainly for marketing","Only certain markets","No"] },
+      { id:"q30", type:"single", label:"Are stockists worthwhile?",
+        options:["Yes","Eventually","Low margins but useful","No"] },
+      { id:"q31", type:"single", label:"Are Uber Eats / Mr D worthwhile once commission is taken into account?",
+        options:["Yes","Only for exposure","Marginal","No"] },
+      { id:"q32", type:"matrix", label:"How important is each of these to your business?",
+        rows:["Orders for collection","Delivery orders","Wholesale","Events"],
+        options:["High","Moderate","Low"] }
+    ]},
+    { title:"Customers & marketing", questions:[
+      { id:"q33", type:"single", label:"Roughly what percentage of customers become repeat customers?",
+        options:["Under 20%","20–40%","40–60%","Over 60%"] },
+      { id:"q34", type:"single", label:"What is the strongest way most customers discover you?",
+        options:["Instagram","Google","Word of mouth","Markets","Uber Eats","Retailers"] },
+      { id:"q35", type:"text", label:"Which marketing activity has given you the highest return?" },
+      { id:"q36", type:"number", prefix:"R", label:"What is your average customer spend?" }
+    ]},
+    { title:"Finance", questions:[
+      { id:"q37", type:"single", label:"How long before the business became consistently profitable?",
+        options:["Under 6 months","6–12 months","1–2 years","More than 2 years"] },
+      { id:"q38", type:"text", label:"Which financial assumption were you most wrong about?" },
+      { id:"q39", type:"single", label:"Which KPI do you monitor most closely?",
+        options:["Sales quantities","Gross margin","Cash flow","Wastage","Repeat customers","Average order value"] },
+      { id:"q40", type:"single", label:"What made you decide it was time to scale up?",
+        options:["Consistent sales","Production capacity reached","Strong cash reserves","Customer demand","Wholesale demand","Event demand"] }
+    ]},
+    { title:"Advice", questions:[
+      { id:"q41", type:"text", label:"What is one mistake you wish you'd avoided?" },
+      { id:"q42", type:"multiline", label:"What are three things you wish someone had told you before you started?" },
+      { id:"q43", type:"multiline", label:"If you only had a small amount of capital to start today, what would you spend less on, and what would you spend more on?" },
+      { id:"q44", type:"multiline", label:"Any advice on anything I didn't ask about?" }
+    ]}
+  ];
+
+  /* ---------- Helpers ---------- */
+  var micIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>';
+  var checkIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  var speechSupported = !!SR;
+
+  function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+  var qCounter = 0;
+
+  function fieldWithMic(id, multiline, tall, placeholder){
+    var input = multiline
+      ? '<textarea id="'+id+'"'+(tall?' class="tall"':'')+' placeholder="'+(placeholder||'')+'"></textarea>'
+      : '<input type="text" id="'+id+'" placeholder="'+(placeholder||'')+'">';
+    return '<div class="field-wrap">'+input+
+      '<button type="button" class="mic" data-target="'+id+'" aria-label="Speak your answer">'+micIcon+'</button></div>'+
+      '<div class="mic-tip">Tip: on your phone keyboard you can tap the microphone key to talk instead of type.</div>';
+  }
+
+  function commentBlock(id){
+    return '<div class="comment">'+
+      '<button type="button" class="comment-toggle" data-comment="'+id+'"><span class="plus">+</span> Add a comment</button>'+
+      '<div class="comment-body" id="cb-'+id+'">'+ fieldWithMic('c-'+id, true, false, '') +'</div>'+
+    '</div>';
+  }
+
+  function renderQuestion(q, num){
+    var h = '<div class="card" data-qid="'+q.id+'">';
+    h += '<span class="q-label"><span class="q-num">Q'+num+'.</span>'+esc(q.label)+'</span>';
+
+    if(q.type==='single' || q.type==='multi'){
+      var cls = q.type==='single'?'radio':'check';
+      var inputType = q.type==='single'?'radio':'checkbox';
+      h += '<div class="options">';
+      q.options.forEach(function(opt,i){
+        var isOther = /\(free text\)$/.test(opt);
+        var optId = q.id+'-o'+i;
+        h += '<label class="chip '+cls+'" data-opt>'+
+               '<span class="box">'+checkIcon+'</span>'+
+               '<span class="txt">'+esc(opt)+'</span>'+
+               '<input type="'+inputType+'" name="'+q.id+'" id="'+optId+'" value="'+esc(opt)+'"'+(isOther?' data-other="1"':'')+'>'+
+             '</label>';
+        if(isOther){
+          h += '<div class="other-field field-wrap">'+
+                 '<input type="text" id="'+q.id+'-other" data-otherfield="'+q.id+'" placeholder="Please specify">'+
+                 '<button type="button" class="mic" data-target="'+q.id+'-other" aria-label="Speak your answer">'+micIcon+'</button>'+
+               '</div>';
+        }
+      });
+      h += '</div>';
+      h += commentBlock(q.id);
+    }
+    else if(q.type==='scale'){
+      h += '<div class="scale">';
+      for(var n=1;n<=5;n++){
+        var sId=q.id+'-s'+n;
+        h += '<label class="chip radio" data-opt>'+
+               '<span class="n">'+n+'</span>'+
+               '<input type="radio" name="'+q.id+'" id="'+sId+'" value="'+n+'">'+
+             '</label>';
+      }
+      h += '</div>';
+      h += '<div class="scale-labels"><span>1 = '+esc(q.low)+'</span><span>5 = '+esc(q.high)+'</span></div>';
+      h += commentBlock(q.id);
+    }
+    else if(q.type==='text'){
+      h += fieldWithMic(q.id, false, false, '');
+    }
+    else if(q.type==='multiline'){
+      h += fieldWithMic(q.id, true, true, '');
+    }
+    else if(q.type==='number'){
+      h += '<div class="prefixed"><span class="prefix">'+esc(q.prefix)+'</span>'+
+           '<input type="number" inputmode="decimal" id="'+q.id+'" min="0" style="padding-right:14px;"></div>';
+      h += commentBlock(q.id);
+    }
+    else if(q.type==='split'){
+      q.rows.forEach(function(r,i){
+        h += '<div class="split-row">'+
+               '<label for="'+q.id+'-'+i+'">'+esc(r)+'</label>'+
+               '<div class="split-input"><input type="number" inputmode="numeric" id="'+q.id+'-'+i+'" data-split="'+q.id+'" min="0" max="100"><span class="pct">%</span></div>'+
+             '</div>';
+      });
+      h += '<div class="split-total"><span>Running total</span><span class="val" id="'+q.id+'-total">0%</span></div>';
+      h += commentBlock(q.id);
+    }
+    else if(q.type==='rank'){
+      q.items.forEach(function(it,i){
+        var rId=q.id+'-r'+i;
+        var opts='<option value="">—</option>';
+        for(var v=1;v<=q.items.length;v++){ opts+='<option value="'+v+'">'+v+'</option>'; }
+        h += '<div class="rank-row"><span class="name">'+esc(it)+'</span>'+
+               '<select id="'+rId+'" data-rankitem="'+esc(it)+'">'+opts+'</select></div>';
+      });
+      h += commentBlock(q.id);
+    }
+    else if(q.type==='matrix'){
+      q.rows.forEach(function(r,ri){
+        var rowName=q.id+'-m'+ri;
+        h += '<div class="matrix-row"><div class="matrix-label">'+esc(r)+'</div><div class="matrix-opts">';
+        q.options.forEach(function(opt,oi){
+          var mId=rowName+'-'+oi;
+          h += '<label class="chip radio" data-opt>'+
+                 '<span class="txt">'+esc(opt)+'</span>'+
+                 '<input type="radio" name="'+rowName+'" id="'+mId+'" value="'+esc(opt)+'" data-matrixrow="'+esc(r)+'">'+
+               '</label>';
+        });
+        h += '</div></div>';
+      });
+      h += commentBlock(q.id);
+    }
+
+    h += '</div>';
+    return h;
+  }
+
+  /* ---------- Build the page ---------- */
+  var container = document.getElementById('questions');
+  var html = '';
+  sections.forEach(function(sec){
+    html += '<div class="section-head"><span class="section-kicker">'+esc(sec.title)+'</span></div>';
+    sec.questions.forEach(function(q){
+      qCounter++;
+      html += renderQuestion(q, qCounter);
+    });
+  });
+  container.innerHTML = html;
+
+  var reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if(!reducedMotion){ document.body.classList.add('anim'); }
+  if(!speechSupported){ document.body.classList.add('no-speech'); }
+
+  /* ---------- Chip selection visual state ---------- */
+  container.addEventListener('change', function(e){
+    var input = e.target;
+    if(input.type==='radio' || input.type==='checkbox'){
+      var chip = input.closest('.chip');
+      if(input.type==='radio'){
+        var group = container.querySelectorAll('input[name="'+CSS.escape(input.name)+'"]');
+        group.forEach(function(g){ var c=g.closest('.chip'); if(c) c.classList.remove('sel'); });
+      }
+      if(chip){ chip.classList.toggle('sel', input.checked); }
+    }
+  });
+
+  /* ---------- Comment toggles ---------- */
+  container.addEventListener('click', function(e){
+    var t = e.target.closest('.comment-toggle');
+    if(!t) return;
+    var body = document.getElementById('cb-'+t.getAttribute('data-comment'));
+    var open = t.classList.toggle('open');
+    if(open){
+      body.classList.add('open');
+      body.style.maxHeight = body.scrollHeight + 'px';
+    } else {
+      body.style.maxHeight = '0px';
+      body.classList.remove('open');
+    }
+  });
+  // keep comment height correct as text grows
+  container.addEventListener('input', function(e){
+    if(e.target.id && e.target.id.indexOf('c-')===0){
+      var body = e.target.closest('.comment-body');
+      if(body && body.classList.contains('open')){ body.style.maxHeight = body.scrollHeight + 'px'; }
+    }
+  });
+
+  /* ---------- Split running totals ---------- */
+  container.addEventListener('input', function(e){
+    var qid = e.target.getAttribute && e.target.getAttribute('data-split');
+    if(!qid) return;
+    var inputs = container.querySelectorAll('[data-split="'+qid+'"]');
+    var total = 0;
+    inputs.forEach(function(inp){ var v=parseFloat(inp.value); if(!isNaN(v)) total+=v; });
+    var el = document.getElementById(qid+'-total');
+    if(el) el.textContent = (Math.round(total*10)/10) + '%';
+  });
+
+  /* ---------- Speech-to-text ---------- */
+  if(speechSupported){
+    var activeRec = null;
+    container.addEventListener('click', function(e){
+      var btn = e.target.closest('.mic');
+      if(!btn) return;
+      var target = document.getElementById(btn.getAttribute('data-target'));
+      if(!target) return;
+
+      // stop if this one is already listening
+      if(btn.classList.contains('listening')){ if(activeRec){ activeRec.stop(); } return; }
+      // stop any other active recogniser
+      if(activeRec){ try{ activeRec.stop(); }catch(_){} }
+
+      var rec = new SR();
+      rec.lang = 'en-ZA';
+      rec.interimResults = false;
+      rec.continuous = true;
+      var triedFallback = false;
+      var base = target.value;
+
+      rec.onresult = function(ev){
+        var chunk = '';
+        for(var i=ev.resultIndex; i<ev.results.length; i++){
+          if(ev.results[i].isFinal){ chunk += ev.results[i][0].transcript; }
+        }
+        if(chunk){
+          var needSpace = base && !/\s$/.test(base);
+          base = base + (needSpace?' ':'') + chunk.trim();
+          target.value = base;
+          target.dispatchEvent(new Event('input',{bubbles:true}));
+        }
+      };
+      rec.onerror = function(ev){
+        if(ev.error==='language-not-supported' && !triedFallback){
+          triedFallback = true;
+          try{ rec.lang='en-GB'; rec.start(); return; }catch(_){}
+        }
+      };
+      rec.onend = function(){
+        btn.classList.remove('listening');
+        if(activeRec===rec) activeRec = null;
+      };
+
+      try{
+        rec.start();
+        activeRec = rec;
+        btn.classList.add('listening');
+      }catch(err){
+        // language may be unsupported at start; try GB fallback
+        try{ rec.lang='en-GB'; rec.start(); activeRec=rec; btn.classList.add('listening'); }catch(_){}
+      }
+    });
+  }
+
+  /* ---------- Scroll: progress bar + card reveal ---------- */
+  var progressBar = document.getElementById('progressBar');
+  var form = document.getElementById('survey');
+  function updateProgress(){
+    var start = form.offsetTop;
+    var end = form.offsetTop + form.offsetHeight - window.innerHeight;
+    var y = window.scrollY;
+    var pct = (end<=start) ? 100 : ((y - start) / (end - start)) * 100;
+    pct = Math.max(0, Math.min(100, pct));
+    progressBar.style.width = pct + '%';
+  }
+  window.addEventListener('scroll', updateProgress, {passive:true});
+  window.addEventListener('resize', updateProgress);
+  updateProgress();
+
+  if(!reducedMotion && 'IntersectionObserver' in window){
+    var io = new IntersectionObserver(function(entries){
+      entries.forEach(function(en){
+        if(en.isIntersecting){ en.target.classList.add('in'); io.unobserve(en.target); }
+      });
+    }, {threshold:0.12, rootMargin:'0px 0px -8% 0px'});
+    document.querySelectorAll('.card').forEach(function(c){ io.observe(c); });
+  } else {
+    document.querySelectorAll('.card').forEach(function(c){ c.classList.add('in'); });
+  }
+
+  /* ---------- Collect answers ---------- */
+  function collect(){
+    var data = {};
+    var num = 0;
+    sections.forEach(function(sec){
+      sec.questions.forEach(function(q){
+        num++;
+        var key = 'Q'+num;
+        var val = '';
+
+        if(q.type==='single'){
+          var sel = container.querySelector('input[name="'+q.id+'"]:checked');
+          if(sel){
+            val = sel.value;
+            if(sel.getAttribute('data-other')){
+              var of = document.getElementById(q.id+'-other');
+              if(of && of.value.trim()){ val = 'Other: '+of.value.trim(); }
+            }
+          }
+        }
+        else if(q.type==='multi'){
+          var picks=[];
+          container.querySelectorAll('input[name="'+q.id+'"]:checked').forEach(function(inp){
+            if(inp.getAttribute('data-other')){
+              var of2 = document.getElementById(q.id+'-other');
+              picks.push('Other: '+((of2 && of2.value.trim()) || ''));
+            } else { picks.push(inp.value); }
+          });
+          val = picks.join(', ');
+        }
+        else if(q.type==='scale'){
+          var sc = container.querySelector('input[name="'+q.id+'"]:checked');
+          val = sc ? sc.value+' of 5' : '';
+        }
+        else if(q.type==='text' || q.type==='multiline'){
+          var f = document.getElementById(q.id);
+          val = f ? f.value.trim() : '';
+        }
+        else if(q.type==='number'){
+          var nf = document.getElementById(q.id);
+          val = (nf && nf.value!=='') ? (q.prefix||'')+nf.value : '';
+        }
+        else if(q.type==='split'){
+          var parts=[];
+          q.rows.forEach(function(r,i){
+            var inp=document.getElementById(q.id+'-'+i);
+            if(inp && inp.value!==''){ parts.push(r+': '+inp.value+'%'); }
+          });
+          val = parts.join(' | ');
+        }
+        else if(q.type==='rank'){
+          var ranks=[];
+          q.items.forEach(function(it,i){
+            var s=document.getElementById(q.id+'-r'+i);
+            if(s && s.value!==''){ ranks.push(it+' = '+s.value); }
+          });
+          val = ranks.join(' | ');
+        }
+        else if(q.type==='matrix'){
+          var rowsOut=[];
+          q.rows.forEach(function(r,ri){
+            var m=container.querySelector('input[name="'+q.id+'-m'+ri+'"]:checked');
+            if(m){ rowsOut.push(r+': '+m.value); }
+          });
+          val = rowsOut.join(' | ');
+        }
+
+        if(val!=='' && val!=null){ data[key+'. '+q.label] = val; }
+
+        // comment (non open-text questions)
+        var cField = document.getElementById('c-'+q.id);
+        if(cField && cField.value.trim()!==''){
+          data[key+' — comment'] = cField.value.trim();
+        }
+      });
+    });
+    return data;
+  }
+
+  /* ---------- Submit ---------- */
+  // Email endpoint obfuscated (base64) so the raw address is not visible in the page source.
+  var _e = 'bW8ua29sYWJoYWlAZ21haWwuY29t';
+  var endpoint = 'https://formsubmit.co/ajax/' + atob(_e);
+
+  var submitBtn = document.getElementById('submitBtn');
+  var errorBox = document.getElementById('submitError');
+  var overlay = document.getElementById('overlay');
+
+  form.addEventListener('submit', function(e){
+    e.preventDefault();
+    errorBox.classList.remove('show');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Sending…';
+
+    var answers = collect();
+    var payload = {
+      _subject: 'BATCH. Industry Insights Survey — new response',
+      _template: 'table',
+      _captcha: 'false'
+    };
+    for(var k in answers){ if(answers.hasOwnProperty(k)) payload[k]=answers[k]; }
+    if(Object.keys(answers).length===0){ payload['(note)']='Submitted with no answers filled in.'; }
+
+    fetch(endpoint, {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json', 'Accept':'application/json' },
+      body: JSON.stringify(payload)
+    })
+    .then(function(res){ if(!res.ok) throw new Error('bad status'); return res.json(); })
+    .then(function(){
+      submitBtn.disabled=false; submitBtn.textContent='Submit';
+      overlay.classList.add('show');
+    })
+    .catch(function(){
+      submitBtn.disabled=false; submitBtn.textContent='Submit';
+      errorBox.classList.add('show');
+      errorBox.scrollIntoView({behavior: reducedMotion?'auto':'smooth', block:'center'});
+    });
+  });
+
+  document.getElementById('modalClose').addEventListener('click', function(){
+    overlay.classList.remove('show');
+  });
+  overlay.addEventListener('click', function(e){
+    if(e.target===overlay){ overlay.classList.remove('show'); }
+  });
+
+})();
+</script>
+</body>
+</html>
