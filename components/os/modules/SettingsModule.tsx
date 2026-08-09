@@ -164,9 +164,10 @@ export default function SettingsModule() {
       <Card pad>
         <SectionTitle>Backup file</SectionTitle>
         <p className="os-small os-muted">
-          Your data lives encrypted on this device only. Export a backup regularly
-          and keep it in Google Drive — that file is also how you move the business
-          to a new phone or laptop.
+          Your data lives encrypted on this device only. Export a backup, save it
+          to Drive, then open it on your phone — on a device with no vault yet,
+          the unlock screen offers <strong>Already have a backup?</strong>. The
+          exported file is encrypted, so it needs this same passphrase.
           {vault.settings.lastBackupAt && (
             <>
               {" "}

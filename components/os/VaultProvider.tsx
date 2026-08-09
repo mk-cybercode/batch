@@ -10,6 +10,7 @@ import {
   useState,
 } from "react";
 import type { Vault } from "@/lib/os/types";
+import type { Sealed } from "@/lib/os/crypto";
 import {
   deriveKey,
   hashSecret,
@@ -39,6 +40,8 @@ interface Ctx {
   lockAdmin: () => void;
   exportBackup: () => void;
   importBackup: (json: string) => boolean;
+  /** Opens a backup file on a device that has no vault yet. */
+  restoreFromFile: (json: string, passphrase: string) => Promise<string>;
   wipe: () => Promise<void>;
   saving: boolean;
   /** Push this device's encrypted vault to Drive. */
@@ -163,10 +166,14 @@ export default function VaultProvider({
     [vault]
   );
 
-  const exportBackup = useCallback(() => {
-    if (!vault) return;
+  /** The exported file is the sealed vault, so a copy sitting in Drive or a
+   *  chat thread is useless without the passphrase. */
+  const exportBackup = useCallback(async () => {
+    const key = keyRef.current;
+    const salt = saltRef.current;
+    if (!vault || !key || !salt) return;
     const stamp = new Date().toISOString().slice(0, 10);
-    const blob = new Blob([JSON.stringify(vault, null, 2)], {
+    const blob = new Blob([JSON.stringify(await seal(key, salt, vault), null, 2)], {
       type: "application/json",
     });
     const url = URL.createObjectURL(blob);
@@ -180,6 +187,7 @@ export default function VaultProvider({
     });
   }, [vault, update]);
 
+  /** Plain-vault backups from earlier versions still open. */
   const importBackup = useCallback((json: string) => {
     try {
       const parsed = JSON.parse(json) as Vault;
@@ -192,6 +200,47 @@ export default function VaultProvider({
       return false;
     }
   }, []);
+
+  /**
+   * Opens a backup on a device with no vault of its own — the phone case.
+   * Accepts both the sealed export and the older plain-JSON one.
+   */
+  const restoreFromFile = useCallback(
+    async (json: string, passphrase: string) => {
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(json);
+      } catch {
+        throw new Error("That file isn't a Batch OS backup.");
+      }
+      const maybeSealed = parsed as Sealed;
+      let data: Vault | null = null;
+      let salt: Uint8Array;
+      let key: CryptoKey;
+
+      if (maybeSealed?.salt && maybeSealed?.iv && maybeSealed?.data) {
+        salt = saltFromSealed(maybeSealed);
+        key = await deriveKey(passphrase, salt);
+        data = await unseal<Vault>(key, maybeSealed);
+        if (!data) throw new Error("That passphrase doesn't open this backup.");
+      } else if ((parsed as Vault)?.settings) {
+        data = parsed as Vault;
+        salt = randomSalt();
+        key = await deriveKey(passphrase, salt);
+      } else {
+        throw new Error("That file isn't a Batch OS backup.");
+      }
+
+      const merged: Vault = { ...seedVault(), ...data };
+      keyRef.current = key;
+      saltRef.current = salt;
+      await writeSealed(await seal(key, salt, merged));
+      setVault(merged);
+      setStatus("open");
+      return "Backup opened on this device.";
+    },
+    []
+  );
 
   /**
    * Drive holds the same sealed blob written locally, so the passphrase is
@@ -258,12 +307,14 @@ export default function VaultProvider({
       lockAdmin: () => setAdminUnlocked(false),
       exportBackup,
       importBackup,
+      restoreFromFile,
       wipe,
       saving,
       syncUp,
       syncDown,
     }),
     [
+      restoreFromFile,
       status,
       vault,
       update,
