@@ -281,19 +281,13 @@ export interface PlanItem {
   repeatWeeks?: number;
 }
 
-export type DocCategory =
-  | "registration"
-  | "tax"
-  | "insurance"
-  | "contract"
-  | "quote"
-  | "invoice"
-  | "receipt"
-  | "manual"
-  | "foodSafety"
-  | "minutes"
-  | "legal"
-  | "brand";
+/** Built-in keys live in DOC_LABEL; anything else is a user-made category. */
+export type DocCategory = string;
+
+export interface DocCategoryDef {
+  id: ID;
+  label: string;
+}
 
 export interface DocLink {
   id: ID;
@@ -304,6 +298,12 @@ export interface DocLink {
   notes?: string;
   /** Brand assets are visible without the admin gate; the rest are not. */
   brandAsset?: boolean;
+  /** Set for records pulled from the linked Drive folder. */
+  driveFileId?: string;
+  mimeType?: string;
+  modifiedAt?: string;
+  /** Flagged when a synced file is no longer in the Drive folder. */
+  missingFromDrive?: boolean;
 }
 
 export interface Settings {
@@ -315,6 +315,12 @@ export interface Settings {
   /** Set once the admin passphrase has been configured. */
   adminHash?: string;
   lastBackupAt?: string;
+  /** Linked Google Drive folder for business documents. */
+  driveFolderUrl?: string;
+  driveFolderId?: string;
+  /** OAuth client ID, only needed to sync a private folder's file list. */
+  driveClientId?: string;
+  lastDriveSyncAt?: string;
 }
 
 /** A line of the Phase 1 capital plan, ticked off as it is actually bought. */
@@ -345,6 +351,8 @@ export interface Vault {
   surveys: Survey[];
   plan: PlanItem[];
   docs: DocLink[];
+  /** Categories the user has added beyond the built-in set. */
+  docCategories: DocCategoryDef[];
 }
 
 export const CHANNEL_LABEL: Record<SalesChannel, string> = {
@@ -381,7 +389,8 @@ export const STAGE_LABEL: Record<RecipeStage, string> = {
   archived: "Archived",
 };
 
-export const DOC_LABEL: Record<DocCategory, string> = {
+export const DOC_LABEL: Record<string, string> = {
+  uncategorised: "Uncategorised",
   registration: "Company registration",
   tax: "Tax",
   insurance: "Insurance",

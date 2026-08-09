@@ -1,16 +1,27 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Download, LogOut, Trash2, Upload } from "lucide-react";
+import {
+  CloudDownload,
+  CloudUpload,
+  Download,
+  LogOut,
+  Trash2,
+  Upload,
+} from "lucide-react";
 import { useVault } from "../VaultProvider";
 import { Card, Field, SectionTitle } from "../ui";
 import { dateLabel } from "@/lib/os/format";
 
 export default function SettingsModule() {
-  const { vault, update, exportBackup, importBackup, lock, wipe } = useVault();
+  const { vault, update, exportBackup, importBackup, lock, wipe, syncUp, syncDown } =
+    useVault();
   const fileRef = useRef<HTMLInputElement>(null);
   const [toast, setToast] = useState("");
   const [confirmWipe, setConfirmWipe] = useState(false);
+  const [busy, setBusy] = useState("");
+  const [pullPass, setPullPass] = useState("");
+  const [showPull, setShowPull] = useState(false);
   if (!vault) return null;
 
   function flash(msg: string) {
@@ -72,7 +83,86 @@ export default function SettingsModule() {
       </Card>
 
       <Card pad>
-        <SectionTitle>Backup</SectionTitle>
+        <SectionTitle>Sync across devices</SectionTitle>
+        <p className="os-small os-muted">
+          Your data is stored on this device, so a phone and a laptop start out
+          separate. Backing up to Drive and pulling it down on the other device
+          keeps them in step. What goes to Drive stays encrypted — the
+          passphrase is still needed to open it.
+        </p>
+        {!vault.settings.driveClientId ? (
+          <p className="os-small" style={{ color: "var(--os-caramel)" }}>
+            Add a Google OAuth client ID under Documents → Google sign-in setup
+            first.
+          </p>
+        ) : (
+          <>
+            <div className="os-flex">
+              <button
+                className="os-btn"
+                disabled={!!busy}
+                onClick={async () => {
+                  setBusy("up");
+                  try {
+                    flash(await syncUp(vault.settings.driveClientId!));
+                  } catch (e) {
+                    flash(e instanceof Error ? e.message : "Backup failed.");
+                  } finally {
+                    setBusy("");
+                  }
+                }}
+              >
+                <CloudUpload size={15} />
+                {busy === "up" ? "Backing up…" : "Back up to Drive"}
+              </button>
+              <button
+                className="os-btn os-btn--ghost"
+                disabled={!!busy}
+                onClick={() => setShowPull((v) => !v)}
+              >
+                <CloudDownload size={15} /> Pull from Drive
+              </button>
+            </div>
+            {showPull && (
+              <div style={{ marginTop: 12 }}>
+                <Field label="Passphrase used on the other device">
+                  <input
+                    className="os-input"
+                    type="password"
+                    value={pullPass}
+                    onChange={(e) => setPullPass(e.target.value)}
+                  />
+                </Field>
+                <button
+                  className="os-btn os-btn--sm"
+                  disabled={!pullPass || !!busy}
+                  onClick={async () => {
+                    setBusy("down");
+                    try {
+                      flash(await syncDown(vault.settings.driveClientId!, pullPass));
+                      setPullPass("");
+                      setShowPull(false);
+                    } catch (e) {
+                      flash(e instanceof Error ? e.message : "Restore failed.");
+                    } finally {
+                      setBusy("");
+                    }
+                  }}
+                >
+                  {busy === "down" ? "Restoring…" : "Replace this device's data"}
+                </button>
+                <p className="os-small os-muted" style={{ marginTop: 8 }}>
+                  This overwrites what is on this device with the Drive copy — back
+                  up here first if this device has newer work.
+                </p>
+              </div>
+            )}
+          </>
+        )}
+      </Card>
+
+      <Card pad>
+        <SectionTitle>Backup file</SectionTitle>
         <p className="os-small os-muted">
           Your data lives encrypted on this device only. Export a backup regularly
           and keep it in Google Drive — that file is also how you move the business

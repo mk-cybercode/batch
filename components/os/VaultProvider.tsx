@@ -20,6 +20,7 @@ import {
 } from "@/lib/os/crypto";
 import { clearVault, readSealed, writeSealed } from "@/lib/os/store";
 import { seedVault } from "@/lib/os/seed";
+import { pullVault, pushVault, signIn } from "@/lib/os/drive";
 
 type Status = "loading" | "setup" | "locked" | "open";
 
@@ -40,6 +41,10 @@ interface Ctx {
   importBackup: (json: string) => boolean;
   wipe: () => Promise<void>;
   saving: boolean;
+  /** Push this device's encrypted vault to Drive. */
+  syncUp: (clientId: string) => Promise<string>;
+  /** Pull the Drive copy and replace what's on this device. */
+  syncDown: (clientId: string, passphrase: string) => Promise<string>;
 }
 
 const VaultCtx = createContext<Ctx | null>(null);
@@ -123,7 +128,8 @@ export default function VaultProvider({
     if (!data) return false;
     keyRef.current = key;
     saltRef.current = salt;
-    setVault(data);
+    /* Backfill collections added after this vault was created. */
+    setVault({ ...seedVault(), ...data });
     setStatus("open");
     return true;
   }, []);
@@ -187,6 +193,48 @@ export default function VaultProvider({
     }
   }, []);
 
+  /**
+   * Drive holds the same sealed blob written locally, so the passphrase is
+   * still required to open it and Google only ever stores ciphertext.
+   */
+  const syncUp = useCallback(
+    async (clientId: string) => {
+      const key = keyRef.current;
+      const salt = saltRef.current;
+      if (!key || !salt || !vault) throw new Error("Unlock the vault first.");
+      await signIn(clientId);
+      const stamped: Vault = {
+        ...vault,
+        settings: { ...vault.settings, lastBackupAt: new Date().toISOString() },
+      };
+      await pushVault(await seal(key, salt, stamped));
+      setVault(stamped);
+      return "Backed up to Google Drive.";
+    },
+    [vault]
+  );
+
+  const syncDown = useCallback(
+    async (clientId: string, passphrase: string) => {
+      await signIn(clientId);
+      const remote = await pullVault();
+      if (!remote) throw new Error("No vault found in Drive yet — back up first.");
+      const salt = saltFromSealed(remote.sealed);
+      const key = await deriveKey(passphrase, salt);
+      const data = await unseal<Vault>(key, remote.sealed);
+      if (!data)
+        throw new Error("That passphrase doesn't open the Drive copy.");
+      keyRef.current = key;
+      saltRef.current = salt;
+      const merged = { ...seedVault(), ...data };
+      await writeSealed(remote.sealed);
+      setVault(merged);
+      setStatus("open");
+      return "Restored from Google Drive.";
+    },
+    []
+  );
+
   const wipe = useCallback(async () => {
     await clearVault();
     keyRef.current = null;
@@ -212,6 +260,8 @@ export default function VaultProvider({
       importBackup,
       wipe,
       saving,
+      syncUp,
+      syncDown,
     }),
     [
       status,
@@ -227,6 +277,8 @@ export default function VaultProvider({
       importBackup,
       wipe,
       saving,
+      syncUp,
+      syncDown,
     ]
   );
 

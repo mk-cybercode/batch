@@ -141,5 +141,6 @@ export function seedVault(): Vault {
       { id: uid("pl_"), date: `${new Date().getFullYear()}-12-05`, title: "Launch into markets and begin selling across channels", kind: "milestone" as const },
     ],
     docs: [],
+    docCategories: [],
   };
 }

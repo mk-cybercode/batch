@@ -1,18 +1,34 @@
 "use client";
 
 import { useState } from "react";
-import { ExternalLink, Lock, Plus, ShieldCheck, Trash2 } from "lucide-react";
+import {
+  ExternalLink,
+  FolderSync,
+  Link2,
+  Lock,
+  Plus,
+  RefreshCw,
+  ShieldCheck,
+  Trash2,
+} from "lucide-react";
 import { useVault } from "../VaultProvider";
-import { Card, Chip, Empty, Field, Modal } from "../ui";
+import { Card, Chip, Empty, Field, Modal, SectionTitle } from "../ui";
 import { dateLabel, today, uid } from "@/lib/os/format";
 import { DOC_LABEL, type DocCategory } from "@/lib/os/types";
+import {
+  embedUrl,
+  folderUrl,
+  listFolder,
+  parseFolderId,
+  signIn,
+} from "@/lib/os/drive";
 
-const CATEGORIES = Object.keys(DOC_LABEL) as DocCategory[];
+const BUILT_IN = Object.keys(DOC_LABEL).filter((k) => k !== "uncategorised");
 
 /**
- * Business documents sit behind a second passphrase, separate from the login.
- * Files themselves live in Drive — this keeps the register, the categories
- * and the links, so nothing large has to be carried in the vault.
+ * Business documents sit behind a second passphrase. Files live in Google
+ * Drive — the linked folder is shown live, and signing in pulls its file
+ * list into the register so documents are searchable and categorised here.
  */
 export default function Documents() {
   const { vault, adminUnlocked, setAdminPassword, tryAdmin, lockAdmin, update } =
@@ -21,10 +37,17 @@ export default function Documents() {
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState("");
   const [adding, setAdding] = useState(false);
-  const [filter, setFilter] = useState<DocCategory | "all">("all");
+  const [managingCats, setManagingCats] = useState(false);
+  const [filter, setFilter] = useState<DocCategory>("all");
+  const [syncing, setSyncing] = useState(false);
+  const [note, setNote] = useState("");
+  const [folderInput, setFolderInput] = useState("");
   if (!vault) return null;
 
   const configured = !!vault.settings.adminHash;
+  const custom = vault.docCategories ?? [];
+  const label = (c: DocCategory) =>
+    DOC_LABEL[c] ?? custom.find((x) => x.id === c)?.label ?? c;
 
   if (!adminUnlocked) {
     return (
@@ -32,7 +55,9 @@ export default function Documents() {
         <Card pad>
           <div className="os-flex" style={{ marginBottom: 12 }}>
             <Lock size={18} />
-            <strong>{configured ? "Administrator access" : "Set an administrator password"}</strong>
+            <strong>
+              {configured ? "Administrator access" : "Set an administrator password"}
+            </strong>
           </div>
           <p className="os-small os-muted">
             {configured
@@ -90,10 +115,186 @@ export default function Documents() {
     );
   }
 
+  const folderId = vault.settings.driveFolderId;
   const docs = vault.docs.filter((d) => filter === "all" || d.category === filter);
+  const usedCategories = [...new Set(vault.docs.map((d) => d.category))];
+
+  /** Pulls the folder listing and upserts it into the register by file id. */
+  async function sync() {
+    if (!folderId) return;
+    const clientId = vault!.settings.driveClientId;
+    if (!clientId) {
+      setNote("Add a Google client ID below to sync the file list.");
+      return;
+    }
+    setSyncing(true);
+    setNote("");
+    try {
+      await signIn(clientId);
+      const files = await listFolder(folderId);
+      update((d) => {
+        const seen = new Set<string>();
+        for (const f of files) {
+          seen.add(f.id);
+          const existing = d.docs.find((x) => x.driveFileId === f.id);
+          if (existing) {
+            existing.title = f.name;
+            existing.url = f.webViewLink ?? existing.url;
+            existing.mimeType = f.mimeType;
+            existing.modifiedAt = f.modifiedTime;
+            existing.missingFromDrive = false;
+          } else {
+            d.docs.push({
+              id: uid("doc_"),
+              title: f.name,
+              url:
+                f.webViewLink ?? `https://drive.google.com/file/d/${f.id}/view`,
+              category: "uncategorised",
+              addedOn: today(),
+              driveFileId: f.id,
+              mimeType: f.mimeType,
+              modifiedAt: f.modifiedTime,
+            });
+          }
+        }
+        /* Flag rather than delete — a file may have simply been moved. */
+        for (const doc of d.docs) {
+          if (doc.driveFileId && !seen.has(doc.driveFileId))
+            doc.missingFromDrive = true;
+        }
+        d.settings.lastDriveSyncAt = new Date().toISOString();
+      });
+      setNote(`Synced ${files.length} file${files.length === 1 ? "" : "s"} from Drive.`);
+    } catch (e) {
+      setNote(e instanceof Error ? e.message : "Sync failed.");
+    } finally {
+      setSyncing(false);
+    }
+  }
 
   return (
     <div className="os-stack">
+      <Card pad>
+        <div className="os-flex" style={{ marginBottom: 10 }}>
+          <FolderSync size={17} />
+          <strong>Linked Google Drive folder</strong>
+          {folderId && (
+            <a
+              className="os-btn os-btn--ghost os-btn--sm os-right"
+              href={folderUrl(folderId)}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <ExternalLink size={13} /> Open in Drive
+            </a>
+          )}
+        </div>
+
+        {folderId ? (
+          <>
+            <div className="os-flex" style={{ marginBottom: 12 }}>
+              <button className="os-btn os-btn--sm" onClick={sync} disabled={syncing}>
+                <RefreshCw size={13} /> {syncing ? "Syncing…" : "Sync file list"}
+              </button>
+              {vault.settings.lastDriveSyncAt && (
+                <span className="os-small os-muted">
+                  Last synced {dateLabel(vault.settings.lastDriveSyncAt.slice(0, 10))}
+                </span>
+              )}
+              <button
+                className="os-btn os-btn--ghost os-btn--sm os-right"
+                onClick={() =>
+                  update((d) => {
+                    d.settings.driveFolderId = undefined;
+                    d.settings.driveFolderUrl = undefined;
+                  })
+                }
+              >
+                Unlink
+              </button>
+            </div>
+            <iframe
+              title="Google Drive folder"
+              src={embedUrl(folderId)}
+              style={{
+                width: "100%",
+                height: 320,
+                border: "1px solid var(--os-line)",
+                borderRadius: 10,
+                background: "#fff",
+              }}
+            />
+            <p className="os-small os-muted" style={{ marginTop: 8 }}>
+              The live view above only renders if the folder is shared with
+              &ldquo;anyone with the link&rdquo;. For a private folder, use{" "}
+              <strong>Sync file list</strong> instead — it signs in as you and
+              keeps the folder private.
+            </p>
+          </>
+        ) : (
+          <>
+            <p className="os-small os-muted">
+              Paste the folder&rsquo;s Drive link. Anything you add to that folder
+              afterwards shows up here.
+            </p>
+            <div className="os-row">
+              <input
+                className="os-input"
+                placeholder="https://drive.google.com/drive/folders/…"
+                value={folderInput}
+                onChange={(e) => setFolderInput(e.target.value)}
+              />
+              <button
+                className="os-btn os-shrink"
+                onClick={() => {
+                  const id = parseFolderId(folderInput);
+                  if (!id) return setNote("That doesn't look like a Drive folder link.");
+                  update((d) => {
+                    d.settings.driveFolderId = id;
+                    d.settings.driveFolderUrl = folderInput.trim();
+                  });
+                  setFolderInput("");
+                  setNote("");
+                }}
+              >
+                <Link2 size={14} /> Link folder
+              </button>
+            </div>
+          </>
+        )}
+
+        <details style={{ marginTop: 12 }}>
+          <summary className="os-small os-muted" style={{ cursor: "pointer" }}>
+            Google sign-in setup (needed for private folders and device sync)
+          </summary>
+          <div style={{ marginTop: 10 }}>
+            <Field label="Google OAuth client ID">
+              <input
+                className="os-input"
+                placeholder="…apps.googleusercontent.com"
+                value={vault.settings.driveClientId ?? ""}
+                onChange={(e) =>
+                  update((d) => void (d.settings.driveClientId = e.target.value.trim()))
+                }
+              />
+            </Field>
+            <p className="os-small os-muted">
+              In Google Cloud Console: create a project, enable the{" "}
+              <strong>Google Drive API</strong>, then create an OAuth 2.0 Client ID
+              of type <strong>Web application</strong> and add{" "}
+              <code>https://mk-cybercode.github.io</code> as an authorised
+              JavaScript origin. Paste the client ID here.
+            </p>
+          </div>
+        </details>
+
+        {note && (
+          <p className="os-small" style={{ marginTop: 10, color: "var(--os-accent)" }}>
+            {note}
+          </p>
+        )}
+      </Card>
+
       <div className="os-flex">
         <div className="os-stages">
           <button
@@ -103,18 +304,24 @@ export default function Documents() {
           >
             All ({vault.docs.length})
           </button>
-          {CATEGORIES.filter((c) => vault.docs.some((d) => d.category === c)).map((c) => (
+          {usedCategories.map((c) => (
             <button
               key={c}
               className="os-stage-pip"
               aria-pressed={filter === c}
               onClick={() => setFilter(c)}
             >
-              {DOC_LABEL[c]}
+              {label(c)} ({vault.docs.filter((d) => d.category === c).length})
             </button>
           ))}
         </div>
         <div className="os-flex os-right">
+          <button
+            className="os-btn os-btn--ghost os-btn--sm"
+            onClick={() => setManagingCats(true)}
+          >
+            Categories
+          </button>
           <button className="os-btn os-btn--ghost os-btn--sm" onClick={lockAdmin}>
             <Lock size={14} /> Lock
           </button>
@@ -128,10 +335,37 @@ export default function Documents() {
         <div className="os-list">
           {docs.map((d) => (
             <div className="os-list-row" key={d.id}>
-              <Chip tone={d.brandAsset ? "caramel" : undefined}>{DOC_LABEL[d.category]}</Chip>
+              <select
+                className="os-select"
+                style={{ maxWidth: 190 }}
+                value={d.category}
+                onChange={(e) =>
+                  update((v) => {
+                    const t = v.docs.find((x) => x.id === d.id);
+                    if (t) t.category = e.target.value;
+                  })
+                }
+              >
+                <option value="uncategorised">Uncategorised</option>
+                {BUILT_IN.map((c) => (
+                  <option key={c} value={c}>
+                    {DOC_LABEL[c]}
+                  </option>
+                ))}
+                {custom.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.label}
+                  </option>
+                ))}
+              </select>
               <strong>{d.title}</strong>
-              <span className="os-small os-muted">{dateLabel(d.addedOn)}</span>
-              {d.notes && <span className="os-small os-muted">· {d.notes}</span>}
+              {d.driveFileId && <Chip tone="accent">Drive</Chip>}
+              {d.missingFromDrive && <Chip tone="danger">Not in folder</Chip>}
+              <span className="os-small os-muted">
+                {d.modifiedAt
+                  ? dateLabel(d.modifiedAt.slice(0, 10))
+                  : dateLabel(d.addedOn)}
+              </span>
               <a
                 className="os-btn os-btn--ghost os-btn--sm os-push"
                 href={d.url}
@@ -153,7 +387,7 @@ export default function Documents() {
       ) : (
         <Empty
           title="No documents registered"
-          body="Keep the files themselves in Google Drive — register the link here so everything is findable in one place, behind this password."
+          body="Link your Drive folder above and sync, or add a single document link by hand."
           action={
             <button className="os-btn" onClick={() => setAdding(true)}>
               <Plus size={15} /> Add document
@@ -163,16 +397,101 @@ export default function Documents() {
       )}
 
       {adding && <DocForm onClose={() => setAdding(false)} />}
+      {managingCats && <CategoryManager onClose={() => setManagingCats(false)} />}
     </div>
   );
 }
 
+function CategoryManager({ onClose }: { onClose: () => void }) {
+  const { vault, update } = useVault();
+  const [name, setName] = useState("");
+  if (!vault) return null;
+  const custom = vault.docCategories ?? [];
+
+  return (
+    <Modal title="Document categories" onClose={onClose}>
+      <SectionTitle>Built in</SectionTitle>
+      <div className="os-flex">
+        {BUILT_IN.map((c) => (
+          <Chip key={c}>{DOC_LABEL[c]}</Chip>
+        ))}
+      </div>
+
+      <SectionTitle>Your categories</SectionTitle>
+      {custom.length ? (
+        <div className="os-list">
+          {custom.map((c) => (
+            <div className="os-list-row" key={c.id}>
+              <input
+                className="os-input"
+                value={c.label}
+                onChange={(e) =>
+                  update((d) => {
+                    const t = d.docCategories.find((x) => x.id === c.id);
+                    if (t) t.label = e.target.value;
+                  })
+                }
+              />
+              <button
+                className="os-btn os-btn--ghost os-btn--sm os-push"
+                onClick={() =>
+                  update((d) => {
+                    d.docCategories = d.docCategories.filter((x) => x.id !== c.id);
+                    /* Don't orphan documents that used it. */
+                    d.docs.forEach((doc) => {
+                      if (doc.category === c.id) doc.category = "uncategorised";
+                    });
+                  })
+                }
+                aria-label="Delete category"
+              >
+                <Trash2 size={13} />
+              </button>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="os-small os-muted">None yet.</p>
+      )}
+
+      <div className="os-row" style={{ marginTop: 14 }}>
+        <input
+          className="os-input"
+          placeholder="New category name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && name.trim()) {
+              update((d) =>
+                d.docCategories.push({ id: uid("dc_"), label: name.trim() })
+              );
+              setName("");
+            }
+          }}
+        />
+        <button
+          className="os-btn os-shrink"
+          disabled={!name.trim()}
+          onClick={() => {
+            update((d) => d.docCategories.push({ id: uid("dc_"), label: name.trim() }));
+            setName("");
+          }}
+        >
+          <Plus size={14} /> Add
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
 function DocForm({ onClose }: { onClose: () => void }) {
-  const { update } = useVault();
+  const { vault, update } = useVault();
   const [title, setTitle] = useState("");
   const [url, setUrl] = useState("");
   const [category, setCategory] = useState<DocCategory>("invoice");
   const [notes, setNotes] = useState("");
+  if (!vault) return null;
+  const custom = vault.docCategories ?? [];
 
   return (
     <Modal
@@ -227,11 +546,16 @@ function DocForm({ onClose }: { onClose: () => void }) {
           <select
             className="os-select"
             value={category}
-            onChange={(e) => setCategory(e.target.value as DocCategory)}
+            onChange={(e) => setCategory(e.target.value)}
           >
-            {CATEGORIES.map((c) => (
+            {BUILT_IN.map((c) => (
               <option key={c} value={c}>
                 {DOC_LABEL[c]}
+              </option>
+            ))}
+            {custom.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.label}
               </option>
             ))}
           </select>
