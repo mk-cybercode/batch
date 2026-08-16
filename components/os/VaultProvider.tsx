@@ -22,6 +22,15 @@ import {
 import { clearVault, readSealed, writeSealed } from "@/lib/os/store";
 import { seedVault } from "@/lib/os/seed";
 import { ensureToken, pullVault, pushVault, signIn } from "@/lib/os/drive";
+import {
+  currentAccount,
+  fetchVault,
+  saveVault,
+  signIn as cloudSignIn,
+  signOut as cloudSignOut,
+  signUp as cloudSignUp,
+  type Account,
+} from "@/lib/os/cloud";
 
 export type SyncState = "off" | "idle" | "syncing" | "error";
 
@@ -54,6 +63,11 @@ interface Ctx {
   syncMessage: string;
   /** Runs a pull-then-push cycle now. */
   syncNow: () => Promise<void>;
+  /** The cloud account this device is signed into, if any. */
+  account: Account | null;
+  cloudRegister: (email: string, password: string) => Promise<string>;
+  cloudLogin: (email: string, password: string) => Promise<void>;
+  cloudLogout: () => Promise<void>;
 }
 
 const VaultCtx = createContext<Ctx | null>(null);
@@ -86,10 +100,21 @@ export default function VaultProvider({
   const applyingRemote = useRef(false);
   const [syncState, setSyncState] = useState<SyncState>("off");
   const [syncMessage, setSyncMessage] = useState("");
+  const [account, setAccount] = useState<Account | null>(null);
+  const accountRef = useRef<Account | null>(null);
 
   useEffect(() => {
     vaultRef.current = vault;
   }, [vault]);
+
+  useEffect(() => {
+    accountRef.current = account;
+  }, [account]);
+
+  /* A signed-in session survives a reload, so pick it back up on start. */
+  useEffect(() => {
+    void currentAccount().then(setAccount).catch(() => setAccount(null));
+  }, []);
 
   useEffect(() => {
     readSealed()
@@ -319,74 +344,102 @@ export default function VaultProvider({
     const key = keyRef.current;
     const salt = saltRef.current;
     const current = vaultRef.current;
-    const clientId = current?.settings.driveClientId;
-    if (!key || !salt || !current || !clientId || !current.settings.autoSync) return;
+    const acct = accountRef.current;
+    if (!key || !salt || !current || !acct) return;
 
     setSyncState("syncing");
     try {
-      await ensureToken(clientId);
-      const remote = await pullVault();
+      const remote = await fetchVault();
       const localStamp = current.settings.updatedAt ?? 0;
 
       if (remote) {
-        /* Each device seals with its own salt, so the remote copy needs a key
+        /* Each device seals with its own salt, so the stored copy needs a key
            derived from the passphrase and *that* salt — the local key won't
            open it. */
-        const remoteSalt = saltFromSealed(remote.sealed);
         const pass = passRef.current;
-        const remoteKey = pass ? await deriveKey(pass, remoteSalt) : key;
+        const remoteKey = pass
+          ? await deriveKey(pass, saltFromSealed(remote.sealed))
+          : key;
         const opened = await unseal<Vault>(remoteKey, remote.sealed);
-        const remoteStamp = opened?.settings.updatedAt ?? 0;
 
-        if (opened && remoteStamp > localStamp) {
-          /* Adopt it; the local store is re-sealed with this device's key by
-             the usual save. */
+        if (!opened) {
+          setSyncState("error");
+          setSyncMessage(
+            "The cloud copy was locked with a different passphrase — sync paused so nothing is overwritten."
+          );
+          return;
+        }
+        if (remote.updatedAt > localStamp) {
           applyingRemote.current = true;
-          lastPushed.current = remoteStamp;
+          lastPushed.current = remote.updatedAt;
           setVault({ ...seedVault(), ...opened });
           setSyncState("idle");
-          setSyncMessage("Updated from another device");
+          setSyncMessage("Updated from your other device");
           return;
         }
       }
 
       if (localStamp !== lastPushed.current) {
-        await pushVault(await seal(key, salt, current));
+        await saveVault(acct.id, await seal(key, salt, current), localStamp);
         lastPushed.current = localStamp;
       }
       setSyncState("idle");
       setSyncMessage("");
     } catch (e) {
       setSyncState("error");
-      setSyncMessage(
-        e instanceof Error && /popup|cancel|none/i.test(e.message)
-          ? "Sign in to Google again to resume syncing"
-          : e instanceof Error
-            ? e.message
-            : "Sync failed"
-      );
+      setSyncMessage(e instanceof Error ? e.message : "Sync failed");
     }
   }, []);
 
-  /* Pull once as soon as the vault opens. */
+  /* Pull once as soon as the vault opens on a signed-in device. */
   useEffect(() => {
-    if (status !== "open" || !vault?.settings.autoSync) return;
+    if (status !== "open" || !account) return;
     void syncNow();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status, vault?.settings.autoSync]);
+  }, [status, account]);
 
   /* Push a few seconds after the last change, so typing isn't uploaded
      keystroke by keystroke. */
   useEffect(() => {
-    if (status !== "open" || !vault?.settings.autoSync) return;
+    if (status !== "open" || !account || !vault) return;
     if (applyingRemote.current) {
       applyingRemote.current = false;
       return;
     }
     if ((vault.settings.updatedAt ?? 0) === lastPushed.current) return;
-    const t = setTimeout(() => void syncNow(), 4000);
+    const t = setTimeout(() => void syncNow(), 3000);
     return () => clearTimeout(t);
-  }, [vault, status, syncNow]);
+  }, [vault, status, account, syncNow]);
+
+  /* Pick up changes made on another device while this one sat open. */
+  useEffect(() => {
+    if (status !== "open" || !account) return;
+    const onFocus = () => void syncNow();
+    window.addEventListener("focus", onFocus);
+    const poll = setInterval(onFocus, 60_000);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      clearInterval(poll);
+    };
+  }, [status, account, syncNow]);
+
+  const cloudRegister = useCallback(async (email: string, password: string) => {
+    const acct = await cloudSignUp(email, password);
+    if (!acct) return "Check your email to confirm the account, then sign in.";
+    setAccount(acct);
+    return "Account created — this device is now syncing.";
+  }, []);
+
+  const cloudLogin = useCallback(async (email: string, password: string) => {
+    setAccount(await cloudSignIn(email, password));
+  }, []);
+
+  const cloudLogout = useCallback(async () => {
+    await cloudSignOut();
+    setAccount(null);
+    setSyncState("off");
+    setSyncMessage("");
+  }, []);
 
   const wipe = useCallback(async () => {
     await clearVault();
@@ -419,12 +472,20 @@ export default function VaultProvider({
       syncState,
       syncMessage,
       syncNow,
+      account,
+      cloudRegister,
+      cloudLogin,
+      cloudLogout,
     }),
     [
       restoreFromFile,
       syncState,
       syncMessage,
       syncNow,
+      account,
+      cloudRegister,
+      cloudLogin,
+      cloudLogout,
       status,
       vault,
       update,

@@ -6,6 +6,7 @@ import {
   CloudUpload,
   Download,
   LogOut,
+  RefreshCw,
   Trash2,
   Upload,
 } from "lucide-react";
@@ -26,6 +27,10 @@ export default function SettingsModule() {
     syncState,
     syncMessage,
     syncNow,
+    account,
+    cloudRegister,
+    cloudLogin,
+    cloudLogout,
   } = useVault();
   const fileRef = useRef<HTMLInputElement>(null);
   const [toast, setToast] = useState("");
@@ -95,11 +100,54 @@ export default function SettingsModule() {
 
       <Card pad>
         <SectionTitle>Sync across devices</SectionTitle>
+        {account ? (
+          <>
+            <p className="os-small os-muted">
+              Signed in as <strong>{account.email}</strong>. Every change is
+              saved to the cloud a few seconds later and picked up by your other
+              devices when you open them.
+            </p>
+            <div className="os-flex">
+              <span className="os-chip">
+                {syncState === "syncing"
+                  ? "Syncing…"
+                  : syncState === "error"
+                    ? "Needs attention"
+                    : "Up to date"}
+              </span>
+              {syncMessage && <span className="os-small os-muted">{syncMessage}</span>}
+              <button
+                className="os-btn os-btn--ghost os-btn--sm"
+                onClick={() => void syncNow()}
+              >
+                <RefreshCw size={13} /> Sync now
+              </button>
+              <button
+                className="os-btn os-btn--ghost os-btn--sm os-right"
+                onClick={async () => {
+                  await cloudLogout();
+                  flash("Signed out of sync on this device.");
+                }}
+              >
+                Sign out
+              </button>
+            </div>
+            <p className="os-small os-muted" style={{ marginTop: 12 }}>
+              What reaches the cloud is encrypted with your passphrase, so the
+              database holds nothing readable. On a new device, sign in here and
+              enter the same passphrase.
+            </p>
+          </>
+        ) : (
+          <CloudSignIn onDone={flash} />
+        )}
+      </Card>
+
+      <Card pad>
+        <SectionTitle>Google Drive (optional)</SectionTitle>
         <p className="os-small os-muted">
-          Your data is stored on this device, so a phone and a laptop start out
-          separate. Backing up to Drive and pulling it down on the other device
-          keeps them in step. What goes to Drive stays encrypted — the
-          passphrase is still needed to open it.
+          A second copy in your own Drive, taken by hand. Not needed if you are
+          signed in above.
         </p>
         {!vault.settings.driveClientId ? (
           <p className="os-small" style={{ color: "var(--os-caramel)" }}>
@@ -108,50 +156,6 @@ export default function SettingsModule() {
           </p>
         ) : (
           <>
-            <label
-              className="os-flex"
-              style={{ marginBottom: 14, cursor: "pointer" }}
-            >
-              <input
-                type="checkbox"
-                checked={!!vault.settings.autoSync}
-                onChange={(e) =>
-                  update((d) => void (d.settings.autoSync = e.target.checked))
-                }
-              />
-              <span>
-                <strong>Keep my devices in sync automatically</strong>
-                <br />
-                <span className="os-small os-muted">
-                  Pulls when you open the app and saves back a few seconds after
-                  each change. The newer copy wins, so avoid editing on two
-                  devices at once.
-                </span>
-              </span>
-            </label>
-            {vault.settings.autoSync && (
-              <p className="os-small os-muted" style={{ marginTop: -6 }}>
-                Status:{" "}
-                <strong>
-                  {syncState === "syncing"
-                    ? "syncing…"
-                    : syncState === "error"
-                      ? syncMessage || "needs attention"
-                      : "up to date"}
-                </strong>
-                {syncState === "error" && (
-                  <>
-                    {" "}
-                    <button
-                      className="os-btn os-btn--ghost os-btn--sm"
-                      onClick={() => void syncNow()}
-                    >
-                      Retry
-                    </button>
-                  </>
-                )}
-              </p>
-            )}
             <div className="os-flex">
               <button
                 className="os-btn"
@@ -303,5 +307,86 @@ export default function SettingsModule() {
 
       {toast && <div className="os-toast">{toast}</div>}
     </div>
+  );
+}
+
+/** Email + password for cloud sync. The passphrase stays separate — this
+ *  proves who you are, the passphrase is what decrypts the data. */
+function CloudSignIn({ onDone }: { onDone: (msg: string) => void }) {
+  const { cloudRegister, cloudLogin } = useVault();
+  const [mode, setMode] = useState<"in" | "up">("in");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
+    setBusy(true);
+    try {
+      if (mode === "up") {
+        onDone(await cloudRegister(email, password));
+      } else {
+        await cloudLogin(email, password);
+        onDone("Signed in — this device is now syncing.");
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "That didn't work.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <>
+      <p className="os-small os-muted">
+        Sign in and this device keeps step with your others automatically. What
+        is stored in the cloud is encrypted with your passphrase, so it holds
+        nothing readable.
+      </p>
+      <form onSubmit={submit}>
+        <div className="os-row">
+          <Field label="Email">
+            <input
+              className="os-input"
+              type="email"
+              autoComplete="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+          </Field>
+          <Field label="Password">
+            <input
+              className="os-input"
+              type="password"
+              autoComplete={mode === "up" ? "new-password" : "current-password"}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+          </Field>
+        </div>
+        {error && (
+          <p className="os-small" style={{ color: "var(--os-danger)" }}>
+            {error}
+          </p>
+        )}
+        <div className="os-flex">
+          <button className="os-btn" disabled={busy || !email || !password}>
+            {busy ? "Working…" : mode === "up" ? "Create account" : "Sign in"}
+          </button>
+          <button
+            type="button"
+            className="os-btn os-btn--ghost os-btn--sm"
+            onClick={() => {
+              setMode(mode === "up" ? "in" : "up");
+              setError("");
+            }}
+          >
+            {mode === "up" ? "I already have an account" : "Create an account"}
+          </button>
+        </div>
+      </form>
+    </>
   );
 }
