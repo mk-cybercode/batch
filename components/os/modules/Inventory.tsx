@@ -1,15 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { Download, Plus, ShoppingCart, Trash2 } from "lucide-react";
+import { Download, Pencil, Plus, ShoppingCart, Trash2 } from "lucide-react";
 import { useVault } from "../VaultProvider";
 import { Card, Chip, Empty, Field, Modal, SectionTitle } from "../ui";
-import { postPurchase } from "@/lib/os/actions";
+import { postPurchase, unpostPurchase } from "@/lib/os/actions";
 import { ZAR, dateLabel, download, toCSV, today, uid } from "@/lib/os/format";
 import {
   EXPENSE_LABEL,
   type ExpenseCategory,
   type InventoryCategory,
+  type Purchase,
   type PurchaseLine,
   type Unit,
 } from "@/lib/os/types";
@@ -34,6 +35,7 @@ export default function Inventory() {
   const { vault, update } = useVault();
   const [tab, setTab] = useState<"stock" | "purchases" | "suppliers">("stock");
   const [buying, setBuying] = useState(false);
+  const [editing, setEditing] = useState<Purchase | null>(null);
   if (!vault) return null;
   /* Narrowing doesn't reach into the callbacks below, so bind it once. */
   const v = vault;
@@ -243,6 +245,7 @@ export default function Inventory() {
                     <th>Lines</th>
                     <th className="os-num">Total</th>
                     <th>Funded</th>
+                    <th></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -271,6 +274,14 @@ export default function Inventory() {
                           <Chip tone={p.fundedFromCapital ? "caramel" : undefined}>
                             {p.fundedFromCapital ? "Capital" : "Trading"}
                           </Chip>
+                        </td>
+                        <td>
+                          <button
+                            className="os-btn os-btn--ghost os-btn--sm"
+                            onClick={() => setEditing(p)}
+                          >
+                            <Pencil size={13} /> Edit
+                          </button>
                         </td>
                       </tr>
                     ))}
@@ -348,20 +359,34 @@ export default function Inventory() {
       )}
 
       {buying && <PurchaseForm onClose={() => setBuying(false)} />}
+      {editing && (
+        <PurchaseForm purchase={editing} onClose={() => setEditing(null)} />
+      )}
     </div>
   );
 }
 
-function PurchaseForm({ onClose }: { onClose: () => void }) {
+function PurchaseForm({
+  purchase,
+  onClose,
+}: {
+  purchase?: Purchase;
+  onClose: () => void;
+}) {
   const { vault, update } = useVault();
-  const [date, setDate] = useState(today());
-  const [supplierId, setSupplierId] = useState("");
-  const [reference, setReference] = useState("");
-  const [category, setCategory] = useState<ExpenseCategory>("ingredients");
-  const [fromCapital, setFromCapital] = useState(true);
-  const [lines, setLines] = useState<PurchaseLine[]>([
-    { itemId: "", qty: 1, lineTotal: 0 },
-  ]);
+  const editing = !!purchase;
+  const [date, setDate] = useState(purchase?.date ?? today());
+  const [supplierId, setSupplierId] = useState(purchase?.supplierId ?? "");
+  const [reference, setReference] = useState(purchase?.reference ?? "");
+  const [category, setCategory] = useState<ExpenseCategory>(
+    purchase?.category ?? "ingredients"
+  );
+  const [fromCapital, setFromCapital] = useState(
+    purchase?.fundedFromCapital ?? true
+  );
+  const [lines, setLines] = useState<PurchaseLine[]>(
+    purchase ? structuredClone(purchase.lines) : [{ itemId: "", qty: 1, lineTotal: 0 }]
+  );
   if (!vault) return null;
 
   const items = vault.inventory.filter((i) => !i.archived);
@@ -370,8 +395,8 @@ function PurchaseForm({ onClose }: { onClose: () => void }) {
   function save() {
     const clean = lines.filter((l) => l.itemId && l.qty > 0);
     if (!clean.length) return;
-    const purchase = {
-      id: uid("pur_"),
+    const next = {
+      id: purchase?.id ?? uid("pur_"),
       date,
       supplierId: supplierId || undefined,
       reference,
@@ -380,23 +405,45 @@ function PurchaseForm({ onClose }: { onClose: () => void }) {
       fundedFromCapital: fromCapital,
     };
     update((d) => {
-      d.purchases.push(purchase);
-      postPurchase(d, purchase);
+      if (purchase) {
+        /* Roll back the original's stock and cost effect, then re-apply the
+           edited version so inventory and the ledger stay in step. */
+        const old = d.purchases.find((p) => p.id === purchase.id);
+        if (old) unpostPurchase(d, old);
+        d.purchases = d.purchases.filter((p) => p.id !== purchase.id);
+      }
+      d.purchases.push(next);
+      postPurchase(d, next);
+    });
+    onClose();
+  }
+
+  function remove() {
+    if (!purchase) return;
+    update((d) => {
+      const old = d.purchases.find((p) => p.id === purchase.id);
+      if (old) unpostPurchase(d, old);
+      d.purchases = d.purchases.filter((p) => p.id !== purchase.id);
     });
     onClose();
   }
 
   return (
     <Modal
-      title="Record a purchase"
+      title={editing ? "Edit purchase" : "Record a purchase"}
       onClose={onClose}
       footer={
         <>
+          {editing && (
+            <button className="os-btn os-btn--danger os-btn--sm" onClick={remove}>
+              <Trash2 size={13} /> Delete
+            </button>
+          )}
           <button className="os-btn os-btn--ghost" onClick={onClose}>
             Cancel
           </button>
           <button className="os-btn" onClick={save} disabled={!total}>
-            Save · {ZAR(total)}
+            {editing ? "Save changes" : "Save"} · {ZAR(total)}
           </button>
         </>
       }
@@ -459,63 +506,85 @@ function PurchaseForm({ onClose }: { onClose: () => void }) {
         </Field>
       </div>
 
-      <SectionTitle>Lines</SectionTitle>
-      {lines.map((l, idx) => (
-        <div className="os-row" key={idx}>
-          <select
-            className="os-select"
-            value={l.itemId}
-            onChange={(e) =>
-              setLines(lines.map((x, i) => (i === idx ? { ...x, itemId: e.target.value } : x)))
-            }
-          >
-            <option value="">— item —</option>
-            {items.map((i) => (
-              <option key={i.id} value={i.id}>
-                {i.name} ({i.unit})
-              </option>
-            ))}
-          </select>
-          <input
-            className="os-input"
-            type="number"
-            step="0.01"
-            placeholder="Qty"
-            value={l.qty}
-            onChange={(e) =>
-              setLines(lines.map((x, i) => (i === idx ? { ...x, qty: Number(e.target.value) } : x)))
-            }
-          />
-          <input
-            className="os-input"
-            type="number"
-            step="0.01"
-            placeholder="Line total (R)"
-            value={l.lineTotal}
-            onChange={(e) =>
-              setLines(
-                lines.map((x, i) => (i === idx ? { ...x, lineTotal: Number(e.target.value) } : x))
-              )
-            }
-          />
-          <button
-            className="os-btn os-btn--ghost os-btn--sm os-shrink"
-            onClick={() => setLines(lines.filter((_, i) => i !== idx))}
-            aria-label="Remove line"
-          >
-            <Trash2 size={13} />
-          </button>
-        </div>
-      ))}
+      <SectionTitle>What you bought</SectionTitle>
+      {lines.map((l, idx) => {
+        const item = items.find((i) => i.id === l.itemId);
+        const unit = item?.unit ?? "unit";
+        const each = l.qty > 0 ? l.lineTotal / l.qty : 0;
+        return (
+        <Card key={idx} style={{ marginBottom: 10 }}>
+          <div className="os-row">
+            <Field label="Item">
+              <select
+                className="os-select"
+                value={l.itemId}
+                onChange={(e) =>
+                  setLines(lines.map((x, i) => (i === idx ? { ...x, itemId: e.target.value } : x)))
+                }
+              >
+                <option value="">— choose an item —</option>
+                {items.map((i) => (
+                  <option key={i.id} value={i.id}>
+                    {i.name} ({i.unit})
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label={`How many (${unit})`}>
+              <input
+                className="os-input"
+                type="number"
+                step="0.01"
+                min="0"
+                value={l.qty}
+                onChange={(e) =>
+                  setLines(lines.map((x, i) => (i === idx ? { ...x, qty: Number(e.target.value) } : x)))
+                }
+              />
+            </Field>
+            <Field label="Total price paid (R)">
+              <input
+                className="os-input"
+                type="number"
+                step="0.01"
+                min="0"
+                value={l.lineTotal}
+                onChange={(e) =>
+                  setLines(
+                    lines.map((x, i) => (i === idx ? { ...x, lineTotal: Number(e.target.value) } : x))
+                  )
+                }
+              />
+            </Field>
+          </div>
+          <div className="os-flex os-small os-muted">
+            <span>
+              {l.qty > 0 && l.lineTotal > 0
+                ? `Works out to ${ZAR(each, 2)} per ${unit}`
+                : "Enter the quantity and what you paid in total for it"}
+            </span>
+            {lines.length > 1 && (
+              <button
+                className="os-btn os-btn--ghost os-btn--sm os-right"
+                onClick={() => setLines(lines.filter((_, i) => i !== idx))}
+              >
+                <Trash2 size={13} /> Remove
+              </button>
+            )}
+          </div>
+        </Card>
+        );
+      })}
       <button
         className="os-btn os-btn--ghost os-btn--sm"
         onClick={() => setLines([...lines, { itemId: "", qty: 1, lineTotal: 0 }])}
       >
-        <Plus size={13} /> Add line
+        <Plus size={13} /> Add another item
       </button>
       <p className="os-small os-muted" style={{ marginTop: 12 }}>
-        Saving raises stock, re-averages the unit cost used by recipes, and posts{" "}
-        {ZAR(total)} to Finance.
+        {editing
+          ? `Saving reverses the original stock movement and re-applies the edited one. Total ${ZAR(total)}.`
+          : `Saving raises stock, re-averages the unit cost used by recipes, and posts ${ZAR(total)} to Finance.`}
       </p>
     </Modal>
   );
