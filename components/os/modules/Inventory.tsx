@@ -1,15 +1,29 @@
 "use client";
 
 import { useState } from "react";
-import { Download, Pencil, Plus, ShoppingCart, Trash2 } from "lucide-react";
+import {
+  Download,
+  MinusCircle,
+  Pencil,
+  Plus,
+  ShoppingCart,
+  Trash2,
+} from "lucide-react";
 import { useVault } from "../VaultProvider";
 import { Card, Chip, Empty, Field, Modal, SectionTitle } from "../ui";
-import { postPurchase, unpostPurchase } from "@/lib/os/actions";
+import {
+  postPurchase,
+  recordCount,
+  recordUsage,
+  unpostPurchase,
+} from "@/lib/os/actions";
 import { ZAR, dateLabel, download, toCSV, today, uid } from "@/lib/os/format";
 import {
   EXPENSE_LABEL,
+  MOVEMENT_LABEL,
   type ExpenseCategory,
   type InventoryCategory,
+  type MovementKind,
   type Purchase,
   type PurchaseLine,
   type Unit,
@@ -36,6 +50,7 @@ export default function Inventory() {
   const [tab, setTab] = useState<"stock" | "purchases" | "suppliers">("stock");
   const [buying, setBuying] = useState(false);
   const [editing, setEditing] = useState<Purchase | null>(null);
+  const [using, setUsing] = useState<string | null>(null);
   if (!vault) return null;
   /* Narrowing doesn't reach into the callbacks below, so bind it once. */
   const v = vault;
@@ -185,13 +200,8 @@ export default function Inventory() {
                       </td>
                       <td className="os-num">{ZAR(i.unitCost, 2)}</td>
                       <td className="os-num">
-                        <input
-                          className="os-input os-num"
-                          type="number"
-                          style={{ width: 84 }}
-                          value={i.stock}
-                          onChange={(e) => set((x) => void (x.stock = Number(e.target.value)))}
-                        />
+                        <strong>{Number(i.stock.toFixed(2))}</strong>{" "}
+                        <span className="os-muted os-small">{i.unit}</span>
                       </td>
                       <td className="os-num">{ZAR(i.stock * i.unitCost)}</td>
                       <td className="os-num">
@@ -207,6 +217,12 @@ export default function Inventory() {
                       </td>
                       <td>
                         {low && <Chip tone="danger">Low</Chip>}{" "}
+                        <button
+                          className="os-btn os-btn--ghost os-btn--sm"
+                          onClick={() => setUsing(i.id)}
+                        >
+                          <MinusCircle size={13} /> Use
+                        </button>{" "}
                         <button
                           className="os-btn os-btn--ghost os-btn--sm"
                           onClick={() => set((x) => void (x.archived = true))}
@@ -225,9 +241,40 @@ export default function Inventory() {
             <Plus size={14} /> Add item
           </button>
           <p className="os-small os-muted">
-            Unit cost is maintained automatically as a weighted average of what you
-            actually pay — record purchases rather than editing it by hand.
+            Stock can&rsquo;t be typed in directly. It rises when you record a
+            purchase, and falls through production, sales, trial batches and the{" "}
+            <strong>Use</strong> button — so every figure has a movement behind it.
+            Unit cost is the weighted average of what you actually paid.
           </p>
+
+          {vault.adjustments.length > 0 && (
+            <>
+              <SectionTitle>Recent stock movements</SectionTitle>
+              <div className="os-list">
+                {[...vault.adjustments]
+                  .sort((a, b) => b.date.localeCompare(a.date))
+                  .slice(0, 8)
+                  .map((a) => {
+                    const item = vault.inventory.find((i) => i.id === a.itemId);
+                    return (
+                      <div className="os-list-row" key={a.id}>
+                        <Chip tone={a.kind === "trial" ? "accent" : undefined}>
+                          {MOVEMENT_LABEL[a.kind]}
+                        </Chip>
+                        <strong>{item?.name ?? "—"}</strong>
+                        <span className="os-small os-muted">
+                          {a.from} → {a.to} {item?.unit}
+                        </span>
+                        <span className="os-small os-muted">{a.reason}</span>
+                        <span className="os-small os-muted os-push">
+                          {dateLabel(a.date)}
+                        </span>
+                      </div>
+                    );
+                  })}
+              </div>
+            </>
+          )}
         </>
       )}
 
@@ -362,7 +409,137 @@ export default function Inventory() {
       {editing && (
         <PurchaseForm purchase={editing} onClose={() => setEditing(null)} />
       )}
+      {using && <UsageForm itemId={using} onClose={() => setUsing(null)} />}
     </div>
+  );
+}
+
+/** Records stock going out — a trial, something used or spoiled, or a count. */
+function UsageForm({ itemId, onClose }: { itemId: string; onClose: () => void }) {
+  const { vault, update } = useVault();
+  const [kind, setKind] = useState<MovementKind>("usage");
+  const [qty, setQty] = useState(0);
+  const [counted, setCounted] = useState(0);
+  const [reason, setReason] = useState("");
+  const [recipeId, setRecipeId] = useState("");
+  if (!vault) return null;
+
+  const item = vault.inventory.find((i) => i.id === itemId);
+  if (!item) return null;
+  const isCount = kind === "count";
+  const result = isCount ? counted : Math.max(0, item.stock - qty);
+
+  return (
+    <Modal
+      title={`${item.name} — stock movement`}
+      onClose={onClose}
+      footer={
+        <>
+          <button className="os-btn os-btn--ghost" onClick={onClose}>
+            Cancel
+          </button>
+          <button
+            className="os-btn"
+            disabled={isCount ? false : qty <= 0}
+            onClick={() => {
+              update((d) => {
+                if (isCount) {
+                  recordCount(d, itemId, counted, reason || "Counted stock take");
+                } else {
+                  recordUsage(
+                    d,
+                    itemId,
+                    qty,
+                    kind,
+                    reason ||
+                      (kind === "trial" ? "Trial batch" : MOVEMENT_LABEL[kind]),
+                    recipeId || undefined
+                  );
+                }
+              });
+              onClose();
+            }}
+          >
+            Record
+          </button>
+        </>
+      }
+    >
+      <Field label="What happened">
+        <select
+          className="os-select"
+          value={kind}
+          onChange={(e) => setKind(e.target.value as MovementKind)}
+        >
+          <option value="trial">Used in a trial batch</option>
+          <option value="usage">Used</option>
+          <option value="waste">Wasted or spoiled</option>
+          <option value="count">Counted it — set the true figure</option>
+        </select>
+      </Field>
+
+      {kind === "trial" && (
+        <Field label="Which recipe (optional)">
+          <select
+            className="os-select"
+            value={recipeId}
+            onChange={(e) => setRecipeId(e.target.value)}
+          >
+            <option value="">—</option>
+            {vault.recipes.map((r) => (
+              <option key={r.id} value={r.id}>
+                {r.name} v{r.version}
+              </option>
+            ))}
+          </select>
+        </Field>
+      )}
+
+      <div className="os-row">
+        {isCount ? (
+          <Field label={`Counted stock (${item.unit})`}>
+            <input
+              className="os-input"
+              type="number"
+              step="0.01"
+              min="0"
+              value={counted}
+              onChange={(e) => setCounted(Number(e.target.value))}
+            />
+          </Field>
+        ) : (
+          <Field label={`How much (${item.unit})`}>
+            <input
+              className="os-input"
+              type="number"
+              step="0.01"
+              min="0"
+              autoFocus
+              value={qty}
+              onChange={(e) => setQty(Number(e.target.value))}
+            />
+          </Field>
+        )}
+        <Field label="Note">
+          <input
+            className="os-input"
+            value={reason}
+            placeholder={kind === "trial" ? "Second pistachio trial" : "Optional"}
+            onChange={(e) => setReason(e.target.value)}
+          />
+        </Field>
+      </div>
+
+      <Card>
+        <span className="os-small">
+          Stock goes from <strong>{Number(item.stock.toFixed(2))}</strong> to{" "}
+          <strong>{Number(result.toFixed(2))}</strong> {item.unit}
+          {!isCount && qty > 0 && (
+            <> · {ZAR(qty * item.unitCost, 2)} of ingredients consumed</>
+          )}
+        </span>
+      </Card>
+    </Modal>
   );
 }
 
@@ -385,15 +562,31 @@ function PurchaseForm({
     purchase?.fundedFromCapital ?? true
   );
   const [lines, setLines] = useState<PurchaseLine[]>(
-    purchase ? structuredClone(purchase.lines) : [{ itemId: "", qty: 1, lineTotal: 0 }]
+    purchase
+      ? purchase.lines.map((l) => ({
+          ...l,
+          /* Older lines carried a bare quantity; treat it as loose units. */
+          packs: l.packs ?? l.qty,
+          packSize: l.packSize ?? 1,
+        }))
+      : [{ itemId: "", qty: 1, packs: 1, packSize: 1, lineTotal: 0 }]
   );
   if (!vault) return null;
 
   const items = vault.inventory.filter((i) => !i.archived);
   const total = lines.reduce((a, l) => a + l.lineTotal, 0);
 
+  /** Quantity received is always packs × size, in the item's own unit. */
+  function resolvedQty(l: PurchaseLine) {
+    const item = items.find((i) => i.id === l.itemId);
+    const size = item?.unit === "unit" ? 1 : (l.packSize ?? 1);
+    return (l.packs ?? 0) * size;
+  }
+
   function save() {
-    const clean = lines.filter((l) => l.itemId && l.qty > 0);
+    const clean = lines
+      .map((l) => ({ ...l, qty: resolvedQty(l) }))
+      .filter((l) => l.itemId && l.qty > 0);
     if (!clean.length) return;
     const next = {
       id: purchase?.id ?? uid("pur_"),
@@ -510,17 +703,21 @@ function PurchaseForm({
       {lines.map((l, idx) => {
         const item = items.find((i) => i.id === l.itemId);
         const unit = item?.unit ?? "unit";
-        const each = l.qty > 0 ? l.lineTotal / l.qty : 0;
+        /* Loose units need no pack size; bulk goods are bought as N × size. */
+        const loose = unit === "unit";
+        const packs = l.packs ?? 1;
+        const packSize = loose ? 1 : (l.packSize ?? 1);
+        const totalQty = packs * packSize;
+        const each = totalQty > 0 ? l.lineTotal / totalQty : 0;
+        const setLine = (patch: Partial<PurchaseLine>) =>
+          setLines(lines.map((x, i) => (i === idx ? { ...x, ...patch } : x)));
         return (
-        <Card key={idx} style={{ marginBottom: 10 }}>
-          <div className="os-row">
+          <Card key={idx} style={{ marginBottom: 10 }}>
             <Field label="Item">
               <select
                 className="os-select"
                 value={l.itemId}
-                onChange={(e) =>
-                  setLines(lines.map((x, i) => (i === idx ? { ...x, itemId: e.target.value } : x)))
-                }
+                onChange={(e) => setLine({ itemId: e.target.value })}
               >
                 <option value="">— choose an item —</option>
                 {items.map((i) => (
@@ -530,49 +727,63 @@ function PurchaseForm({
                 ))}
               </select>
             </Field>
-            <Field label={`How many (${unit})`}>
-              <input
-                className="os-input"
-                type="number"
-                step="0.01"
-                min="0"
-                value={l.qty}
-                onChange={(e) =>
-                  setLines(lines.map((x, i) => (i === idx ? { ...x, qty: Number(e.target.value) } : x)))
-                }
-              />
-            </Field>
-            <Field label="Total price paid (R)">
-              <input
-                className="os-input"
-                type="number"
-                step="0.01"
-                min="0"
-                value={l.lineTotal}
-                onChange={(e) =>
-                  setLines(
-                    lines.map((x, i) => (i === idx ? { ...x, lineTotal: Number(e.target.value) } : x))
-                  )
-                }
-              />
-            </Field>
-          </div>
-          <div className="os-flex os-small os-muted">
-            <span>
-              {l.qty > 0 && l.lineTotal > 0
-                ? `Works out to ${ZAR(each, 2)} per ${unit}`
-                : "Enter the quantity and what you paid in total for it"}
-            </span>
-            {lines.length > 1 && (
-              <button
-                className="os-btn os-btn--ghost os-btn--sm os-right"
-                onClick={() => setLines(lines.filter((_, i) => i !== idx))}
-              >
-                <Trash2 size={13} /> Remove
-              </button>
-            )}
-          </div>
-        </Card>
+            <div className="os-row">
+              <Field label={loose ? "How many units" : "How many packs / bags"}>
+                <input
+                  className="os-input"
+                  type="number"
+                  step="1"
+                  min="0"
+                  value={packs}
+                  onChange={(e) => setLine({ packs: Number(e.target.value) })}
+                />
+              </Field>
+              {!loose && (
+                <Field label={`Size of each (${unit})`}>
+                  <input
+                    className="os-input"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={packSize}
+                    onChange={(e) => setLine({ packSize: Number(e.target.value) })}
+                  />
+                </Field>
+              )}
+              <Field label="Total price paid (R)">
+                <input
+                  className="os-input"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={l.lineTotal}
+                  onChange={(e) => setLine({ lineTotal: Number(e.target.value) })}
+                />
+              </Field>
+            </div>
+            <div className="os-flex os-small os-muted">
+              <span>
+                {totalQty > 0 && l.lineTotal > 0 ? (
+                  <>
+                    Adds <strong>{totalQty}&nbsp;{unit}</strong> to stock ·{" "}
+                    <strong>{ZAR(each, 2)}</strong> per {unit}
+                  </>
+                ) : loose ? (
+                  "How many you bought, and the total you paid"
+                ) : (
+                  `e.g. 2 bags × 5 ${unit} = 10 ${unit}`
+                )}
+              </span>
+              {lines.length > 1 && (
+                <button
+                  className="os-btn os-btn--ghost os-btn--sm os-right"
+                  onClick={() => setLines(lines.filter((_, i) => i !== idx))}
+                >
+                  <Trash2 size={13} /> Remove
+                </button>
+              )}
+            </div>
+          </Card>
         );
       })}
       <button

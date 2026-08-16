@@ -142,5 +142,6 @@ export function seedVault(): Vault {
     ],
     docs: [],
     docCategories: [],
+    adjustments: [],
   };
 }

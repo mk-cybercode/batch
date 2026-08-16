@@ -1,11 +1,20 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { FileDown, GitBranch, Lock, Plus, Star, Trash2, X } from "lucide-react";
+import {
+  Beaker,
+  FileDown,
+  GitBranch,
+  Lock,
+  Plus,
+  Star,
+  Trash2,
+  X,
+} from "lucide-react";
 import { useVault } from "../VaultProvider";
 import { Card, Chip, Empty, Field, Modal, SectionTitle } from "../ui";
 import type { ModuleProps } from "../Shell";
-import { forkRecipe } from "@/lib/os/actions";
+import { forkRecipe, recordTrial } from "@/lib/os/actions";
 import { batchesAvailable, recipeCost, recipeFeedback } from "@/lib/os/calc";
 import { ZAR, dateLabel, pct, today, uid } from "@/lib/os/format";
 import {
@@ -206,6 +215,9 @@ function RecipeEditor({
   const [photoKind, setPhotoKind] = useState<"process" | "finished" | "packaging">(
     "finished"
   );
+  const [trialOpen, setTrialOpen] = useState(false);
+  const [trialBatches, setTrialBatches] = useState(1);
+  const [trialNote, setTrialNote] = useState("");
   if (!vault) return null;
 
   const locked = !!recipe.lockedAt;
@@ -614,9 +626,18 @@ function RecipeEditor({
             No tasting feedback captured for this recipe yet.
           </p>
         )}
-        <button className="os-btn os-btn--ghost os-btn--sm os-no-print" onClick={onSurvey}>
-          <Star size={13} /> Record tasting feedback
-        </button>
+        <div className="os-flex os-no-print">
+          <button className="os-btn os-btn--ghost os-btn--sm" onClick={onSurvey}>
+            <Star size={13} /> Record tasting feedback
+          </button>
+          <button
+            className="os-btn os-btn--ghost os-btn--sm"
+            disabled={!recipe.ingredients.length}
+            onClick={() => setTrialOpen(true)}
+          >
+            <Beaker size={13} /> Log a trial batch
+          </button>
+        </div>
 
         <Field label="Notes">
           <textarea
@@ -658,6 +679,86 @@ function RecipeEditor({
           </button>
         </div>
       </div>
+
+      {trialOpen && (
+        <Modal
+          title="Log a trial batch"
+          onClose={() => setTrialOpen(false)}
+          footer={
+            <>
+              <button
+                className="os-btn os-btn--ghost"
+                onClick={() => setTrialOpen(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className="os-btn"
+                onClick={() => {
+                  update((d) => recordTrial(d, recipe.id, trialBatches, trialNote));
+                  setTrialOpen(false);
+                  setTrialNote("");
+                }}
+              >
+                Record trial
+              </button>
+            </>
+          }
+        >
+          <p className="os-small os-muted">
+            A trial takes the ingredients out of stock without producing sellable
+            units — the cost lands in R&amp;D rather than in finished goods.
+          </p>
+          <div className="os-row">
+            <Field label="How many batches">
+              <input
+                className="os-input"
+                type="number"
+                min={1}
+                value={trialBatches}
+                onChange={(e) => setTrialBatches(Number(e.target.value))}
+              />
+            </Field>
+            <Field label="Note">
+              <input
+                className="os-input"
+                value={trialNote}
+                placeholder="What you were testing"
+                onChange={(e) => setTrialNote(e.target.value)}
+              />
+            </Field>
+          </div>
+          <Card>
+            <div className="os-small">
+              <strong>Comes out of stock:</strong>
+              <div style={{ marginTop: 8, display: "grid", gap: 4 }}>
+                {recipe.ingredients.map((line, i) => {
+                  const item = vault.inventory.find((x) => x.id === line.itemId);
+                  if (!item) return null;
+                  const need = line.qty * trialBatches;
+                  return (
+                    <div key={i} className="os-flex">
+                      <span>{item.name}</span>
+                      <span
+                        className="os-right"
+                        style={{
+                          color: need > item.stock ? "var(--os-danger)" : undefined,
+                        }}
+                      >
+                        {need} {item.unit} of {Number(item.stock.toFixed(2))}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+              <p className="os-muted" style={{ marginTop: 10, marginBottom: 0 }}>
+                Ingredient cost of this trial:{" "}
+                <strong>{ZAR(cost.ingredientCost * trialBatches, 2)}</strong>
+              </p>
+            </div>
+          </Card>
+        </Modal>
+      )}
     </Modal>
   );
 }

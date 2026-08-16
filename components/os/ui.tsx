@@ -1,7 +1,7 @@
 "use client";
 
 import { X } from "lucide-react";
-import type { CSSProperties, ReactNode } from "react";
+import { useEffect, type CSSProperties, type ReactNode } from "react";
 import { ZAR } from "@/lib/os/format";
 
 export function Card({
@@ -78,6 +78,19 @@ export function Modal({
   children: ReactNode;
   footer?: ReactNode;
 }) {
+  /* Escape closes the topmost dialog — stopPropagation keeps a nested one
+     from closing its parent at the same time. */
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        onClose();
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
   return (
     <div
       className="os-modal-scrim"

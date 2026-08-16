@@ -6,9 +6,15 @@
  * draft vault produced by the store's `update()`.
  */
 
-import type { ProductionBatch, Purchase, Sale, Vault } from "./types";
+import type {
+  MovementKind,
+  ProductionBatch,
+  Purchase,
+  Sale,
+  Vault,
+} from "./types";
 import { recipeCost } from "./calc";
-import { uid } from "./format";
+import { today, uid } from "./format";
 
 /**
  * Receiving a purchase raises stock, re-averages the unit cost so recipes
@@ -158,6 +164,76 @@ export function postEquipmentPurchase(
   };
   v.expenses.push(expense);
   eq.expenseId = expense.id;
+}
+
+/** Takes stock down and records why. Used for trials, usage and waste. */
+export function recordUsage(
+  v: Vault,
+  itemId: string,
+  qty: number,
+  kind: MovementKind,
+  reason: string,
+  recipeId?: string
+) {
+  const item = v.inventory.find((i) => i.id === itemId);
+  if (!item || qty <= 0) return;
+  const from = item.stock;
+  item.stock = Math.max(0, from - qty);
+  v.adjustments.push({
+    id: uid("adj_"),
+    date: today(),
+    itemId,
+    kind,
+    qty,
+    from,
+    to: item.stock,
+    reason,
+    recipeId,
+  });
+}
+
+/** A counted figure replaces the running one, keeping the difference on record. */
+export function recordCount(
+  v: Vault,
+  itemId: string,
+  counted: number,
+  reason: string
+) {
+  const item = v.inventory.find((i) => i.id === itemId);
+  if (!item) return;
+  const from = item.stock;
+  item.stock = Math.max(0, counted);
+  v.adjustments.push({
+    id: uid("adj_"),
+    date: today(),
+    itemId,
+    kind: "count",
+    qty: Math.abs(counted - from),
+    from,
+    to: item.stock,
+    reason,
+  });
+}
+
+/** Consumes a recipe's ingredients for an R&D trial, without creating stock. */
+export function recordTrial(
+  v: Vault,
+  recipeId: string,
+  batches: number,
+  note: string
+) {
+  const recipe = v.recipes.find((r) => r.id === recipeId);
+  if (!recipe || batches <= 0) return;
+  for (const line of recipe.ingredients) {
+    recordUsage(
+      v,
+      line.itemId,
+      line.qty * batches,
+      "trial",
+      note || `Trial — ${recipe.name} v${recipe.version}`,
+      recipeId
+    );
+  }
 }
 
 /** Approving a recipe freezes it; later edits fork a new version instead. */

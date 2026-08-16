@@ -50,10 +50,43 @@ export interface Supplier {
 
 export interface PurchaseLine {
   itemId: ID;
+  /** Total quantity received, in the item's own unit — packs × packSize. */
   qty: number;
+  /** How many containers were bought (bags, boxes, cases, or loose units). */
+  packs?: number;
+  /** How much of the item's unit is in each container, e.g. 5 for a 5kg bag. */
+  packSize?: number;
   /** Total paid for this line, in rand (not per unit). */
   lineTotal: number;
 }
+
+/**
+ * Stock rises only through purchases. It falls through production, sales,
+ * and the movements recorded here — a recipe trial, something used or
+ * spoiled, or a counted stock take. Every fall has a reason attached.
+ */
+export type MovementKind = "trial" | "usage" | "waste" | "count";
+
+export interface StockAdjustment {
+  id: ID;
+  date: ISODate;
+  itemId: ID;
+  kind: MovementKind;
+  /** Amount used, in the item's unit. A count carries the difference. */
+  qty: number;
+  from: number;
+  to: number;
+  reason: string;
+  /** Set when a recipe trial consumed it, so R&D cost is traceable. */
+  recipeId?: ID;
+}
+
+export const MOVEMENT_LABEL: Record<MovementKind, string> = {
+  trial: "Trial batch",
+  usage: "Used",
+  waste: "Wasted / spoiled",
+  count: "Stock take",
+};
 
 export interface Purchase {
   id: ID;
@@ -353,6 +386,7 @@ export interface Vault {
   docs: DocLink[];
   /** Categories the user has added beyond the built-in set. */
   docCategories: DocCategoryDef[];
+  adjustments: StockAdjustment[];
 }
 
 export const CHANNEL_LABEL: Record<SalesChannel, string> = {
