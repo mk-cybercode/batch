@@ -314,7 +314,8 @@ export default function SettingsModule() {
  *  proves who you are, the passphrase is what decrypts the data. */
 function CloudSignIn({ onDone }: { onDone: (msg: string) => void }) {
   const { cloudRegister, cloudLogin } = useVault();
-  const [mode, setMode] = useState<"in" | "up">("in");
+  /* Nobody has an account until they make one, so start on that. */
+  const [mode, setMode] = useState<"in" | "up">("up");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -340,10 +341,34 @@ function CloudSignIn({ onDone }: { onDone: (msg: string) => void }) {
 
   return (
     <>
+      <div className="os-stages" style={{ marginBottom: 14 }}>
+        <button
+          type="button"
+          className="os-stage-pip"
+          aria-pressed={mode === "up"}
+          onClick={() => {
+            setMode("up");
+            setError("");
+          }}
+        >
+          First time here
+        </button>
+        <button
+          type="button"
+          className="os-stage-pip"
+          aria-pressed={mode === "in"}
+          onClick={() => {
+            setMode("in");
+            setError("");
+          }}
+        >
+          I already have an account
+        </button>
+      </div>
       <p className="os-small os-muted">
-        Sign in and this device keeps step with your others automatically. What
-        is stored in the cloud is encrypted with your passphrase, so it holds
-        nothing readable.
+        {mode === "up"
+          ? "Choose any email and password — this is a new login you are creating now, just to link your devices. It isn't your passphrase and isn't your Supabase login."
+          : "Use the email and password you created here on your other device."}
       </p>
       <form onSubmit={submit}>
         <div className="os-row">
@@ -373,17 +398,11 @@ function CloudSignIn({ onDone }: { onDone: (msg: string) => void }) {
         )}
         <div className="os-flex">
           <button className="os-btn" disabled={busy || !email || !password}>
-            {busy ? "Working…" : mode === "up" ? "Create account" : "Sign in"}
-          </button>
-          <button
-            type="button"
-            className="os-btn os-btn--ghost os-btn--sm"
-            onClick={() => {
-              setMode(mode === "up" ? "in" : "up");
-              setError("");
-            }}
-          >
-            {mode === "up" ? "I already have an account" : "Create an account"}
+            {busy
+              ? "Working…"
+              : mode === "up"
+                ? "Create my account"
+                : "Sign in"}
           </button>
         </div>
       </form>

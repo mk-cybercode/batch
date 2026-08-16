@@ -100,7 +100,8 @@ export async function saveVault(
 /** Turns Supabase's wording into something worth reading on screen. */
 function friendly(message: string): string {
   const m = message.toLowerCase();
-  if (m.includes("invalid login")) return "That email and password don't match.";
+  if (m.includes("invalid login"))
+    return "No account with that email and password. If you haven't made one yet, use “First time here”.";
   if (m.includes("already registered")) return "That email already has an account — sign in instead.";
   if (m.includes("signups not allowed") || m.includes("sign ups"))
     return "New sign-ups are closed on this project.";
