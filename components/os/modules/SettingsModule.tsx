@@ -14,8 +14,19 @@ import { Card, Field, SectionTitle } from "../ui";
 import { dateLabel } from "@/lib/os/format";
 
 export default function SettingsModule() {
-  const { vault, update, exportBackup, importBackup, lock, wipe, syncUp, syncDown } =
-    useVault();
+  const {
+    vault,
+    update,
+    exportBackup,
+    importBackup,
+    lock,
+    wipe,
+    syncUp,
+    syncDown,
+    syncState,
+    syncMessage,
+    syncNow,
+  } = useVault();
   const fileRef = useRef<HTMLInputElement>(null);
   const [toast, setToast] = useState("");
   const [confirmWipe, setConfirmWipe] = useState(false);
@@ -97,6 +108,50 @@ export default function SettingsModule() {
           </p>
         ) : (
           <>
+            <label
+              className="os-flex"
+              style={{ marginBottom: 14, cursor: "pointer" }}
+            >
+              <input
+                type="checkbox"
+                checked={!!vault.settings.autoSync}
+                onChange={(e) =>
+                  update((d) => void (d.settings.autoSync = e.target.checked))
+                }
+              />
+              <span>
+                <strong>Keep my devices in sync automatically</strong>
+                <br />
+                <span className="os-small os-muted">
+                  Pulls when you open the app and saves back a few seconds after
+                  each change. The newer copy wins, so avoid editing on two
+                  devices at once.
+                </span>
+              </span>
+            </label>
+            {vault.settings.autoSync && (
+              <p className="os-small os-muted" style={{ marginTop: -6 }}>
+                Status:{" "}
+                <strong>
+                  {syncState === "syncing"
+                    ? "syncing…"
+                    : syncState === "error"
+                      ? syncMessage || "needs attention"
+                      : "up to date"}
+                </strong>
+                {syncState === "error" && (
+                  <>
+                    {" "}
+                    <button
+                      className="os-btn os-btn--ghost os-btn--sm"
+                      onClick={() => void syncNow()}
+                    >
+                      Retry
+                    </button>
+                  </>
+                )}
+              </p>
+            )}
             <div className="os-flex">
               <button
                 className="os-btn"

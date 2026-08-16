@@ -91,35 +91,51 @@ function loadGis(): Promise<void> {
 }
 
 let token: string | null = null;
+let tokenExpiry = 0;
 
 export function hasToken(): boolean {
-  return !!token;
+  return !!token && Date.now() < tokenExpiry;
 }
 
 export function forgetToken(): void {
   token = null;
+  tokenExpiry = 0;
 }
 
-/** Opens Google's consent popup and keeps the token for this session only. */
-export async function signIn(clientId: string): Promise<string> {
-  await loadGis();
-  const oauth2 = window.google?.accounts?.oauth2;
-  if (!oauth2) throw new Error("Google sign-in is unavailable.");
-  return new Promise((resolve, reject) => {
-    const client = oauth2.initTokenClient({
-      client_id: clientId,
-      scope: SCOPES,
-      callback: (resp) => {
-        if (resp.access_token) {
-          token = resp.access_token;
-          resolve(resp.access_token);
-        } else {
-          reject(new Error(resp.error || "Sign-in was cancelled."));
-        }
-      },
-    });
-    client.requestAccessToken({ prompt: "" });
-  });
+/**
+ * Opens Google's consent popup and keeps the token in memory for this
+ * session only. `silent` reuses an existing Google session without showing
+ * anything, which is what lets background syncing stay out of the way.
+ */
+export function signIn(clientId: string, silent = false): Promise<string> {
+  return loadGis().then(
+    () =>
+      new Promise<string>((resolve, reject) => {
+        const oauth2 = window.google?.accounts?.oauth2;
+        if (!oauth2) return reject(new Error("Google sign-in is unavailable."));
+        const client = oauth2.initTokenClient({
+          client_id: clientId,
+          scope: SCOPES,
+          callback: (resp) => {
+            if (resp.access_token) {
+              token = resp.access_token;
+              /* Google tokens last an hour; renew a little early. */
+              tokenExpiry = Date.now() + 55 * 60 * 1000;
+              resolve(resp.access_token);
+            } else {
+              reject(new Error(resp.error || "Sign-in was cancelled."));
+            }
+          },
+        });
+        client.requestAccessToken({ prompt: silent ? "none" : "" });
+      })
+  );
+}
+
+/** Returns a usable token, renewing quietly when one has expired. */
+export async function ensureToken(clientId: string): Promise<string> {
+  if (hasToken()) return token as string;
+  return signIn(clientId, true);
 }
 
 async function api<T>(url: string, init?: RequestInit): Promise<T> {

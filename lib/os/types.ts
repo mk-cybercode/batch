@@ -364,6 +364,10 @@ export interface Settings {
   /** OAuth client ID, only needed to sync a private folder's file list. */
   driveClientId?: string;
   lastDriveSyncAt?: string;
+  /** Keep every device in step through Drive without being asked. */
+  autoSync?: boolean;
+  /** When this vault last changed, used to settle which copy is newer. */
+  updatedAt?: number;
 }
 
 /** A line of the Phase 1 capital plan, ticked off as it is actually bought. */

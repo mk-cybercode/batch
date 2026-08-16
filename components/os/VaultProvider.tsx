@@ -21,7 +21,9 @@ import {
 } from "@/lib/os/crypto";
 import { clearVault, readSealed, writeSealed } from "@/lib/os/store";
 import { seedVault } from "@/lib/os/seed";
-import { pullVault, pushVault, signIn } from "@/lib/os/drive";
+import { ensureToken, pullVault, pushVault, signIn } from "@/lib/os/drive";
+
+export type SyncState = "off" | "idle" | "syncing" | "error";
 
 type Status = "loading" | "setup" | "locked" | "open";
 
@@ -48,6 +50,10 @@ interface Ctx {
   syncUp: (clientId: string) => Promise<string>;
   /** Pull the Drive copy and replace what's on this device. */
   syncDown: (clientId: string, passphrase: string) => Promise<string>;
+  syncState: SyncState;
+  syncMessage: string;
+  /** Runs a pull-then-push cycle now. */
+  syncNow: () => Promise<void>;
 }
 
 const VaultCtx = createContext<Ctx | null>(null);
@@ -72,6 +78,18 @@ export default function VaultProvider({
   const keyRef = useRef<CryptoKey | null>(null);
   const saltRef = useRef<Uint8Array | null>(null);
   const queued = useRef<Vault | null>(null);
+  /* Held for this session only, so a copy sealed on another device — which
+     carries its own salt — can be opened without asking again. */
+  const passRef = useRef<string | null>(null);
+  const vaultRef = useRef<Vault | null>(null);
+  const lastPushed = useRef<number>(0);
+  const applyingRemote = useRef(false);
+  const [syncState, setSyncState] = useState<SyncState>("off");
+  const [syncMessage, setSyncMessage] = useState("");
+
+  useEffect(() => {
+    vaultRef.current = vault;
+  }, [vault]);
 
   useEffect(() => {
     readSealed()
@@ -107,6 +125,8 @@ export default function VaultProvider({
       if (!current) return current;
       const draft = structuredClone(current);
       fn(draft);
+      /* Stamp every change so the newer of two devices can be identified. */
+      draft.settings.updatedAt = Date.now();
       return draft;
     });
   }, []);
@@ -116,6 +136,7 @@ export default function VaultProvider({
     const key = await deriveKey(passphrase, salt);
     keyRef.current = key;
     saltRef.current = salt;
+    passRef.current = passphrase;
     const fresh = seedVault();
     await writeSealed(await seal(key, salt, fresh));
     setVault(fresh);
@@ -131,6 +152,7 @@ export default function VaultProvider({
     if (!data) return false;
     keyRef.current = key;
     saltRef.current = salt;
+    passRef.current = passphrase;
     /* Backfill collections added after this vault was created. */
     setVault({ ...seedVault(), ...data });
     setStatus("open");
@@ -140,6 +162,7 @@ export default function VaultProvider({
   const lock = useCallback(() => {
     keyRef.current = null;
     saltRef.current = null;
+    passRef.current = null;
     setVault(null);
     setAdminUnlocked(false);
     setStatus("locked");
@@ -234,6 +257,7 @@ export default function VaultProvider({
       const merged: Vault = { ...seedVault(), ...data };
       keyRef.current = key;
       saltRef.current = salt;
+      passRef.current = passphrase;
       await writeSealed(await seal(key, salt, merged));
       setVault(merged);
       setStatus("open");
@@ -275,6 +299,7 @@ export default function VaultProvider({
         throw new Error("That passphrase doesn't open the Drive copy.");
       keyRef.current = key;
       saltRef.current = salt;
+      passRef.current = passphrase;
       const merged = { ...seedVault(), ...data };
       await writeSealed(remote.sealed);
       setVault(merged);
@@ -283,6 +308,85 @@ export default function VaultProvider({
     },
     []
   );
+
+  /**
+   * Automatic sync. On opening, the newer of the local and Drive copies
+   * wins; afterwards every change is pushed a few seconds later. It is
+   * last-write-wins by timestamp, which suits one person moving between
+   * their own devices — two devices edited at once will not merge.
+   */
+  const syncNow = useCallback(async () => {
+    const key = keyRef.current;
+    const salt = saltRef.current;
+    const current = vaultRef.current;
+    const clientId = current?.settings.driveClientId;
+    if (!key || !salt || !current || !clientId || !current.settings.autoSync) return;
+
+    setSyncState("syncing");
+    try {
+      await ensureToken(clientId);
+      const remote = await pullVault();
+      const localStamp = current.settings.updatedAt ?? 0;
+
+      if (remote) {
+        /* Each device seals with its own salt, so the remote copy needs a key
+           derived from the passphrase and *that* salt — the local key won't
+           open it. */
+        const remoteSalt = saltFromSealed(remote.sealed);
+        const pass = passRef.current;
+        const remoteKey = pass ? await deriveKey(pass, remoteSalt) : key;
+        const opened = await unseal<Vault>(remoteKey, remote.sealed);
+        const remoteStamp = opened?.settings.updatedAt ?? 0;
+
+        if (opened && remoteStamp > localStamp) {
+          /* Adopt it; the local store is re-sealed with this device's key by
+             the usual save. */
+          applyingRemote.current = true;
+          lastPushed.current = remoteStamp;
+          setVault({ ...seedVault(), ...opened });
+          setSyncState("idle");
+          setSyncMessage("Updated from another device");
+          return;
+        }
+      }
+
+      if (localStamp !== lastPushed.current) {
+        await pushVault(await seal(key, salt, current));
+        lastPushed.current = localStamp;
+      }
+      setSyncState("idle");
+      setSyncMessage("");
+    } catch (e) {
+      setSyncState("error");
+      setSyncMessage(
+        e instanceof Error && /popup|cancel|none/i.test(e.message)
+          ? "Sign in to Google again to resume syncing"
+          : e instanceof Error
+            ? e.message
+            : "Sync failed"
+      );
+    }
+  }, []);
+
+  /* Pull once as soon as the vault opens. */
+  useEffect(() => {
+    if (status !== "open" || !vault?.settings.autoSync) return;
+    void syncNow();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status, vault?.settings.autoSync]);
+
+  /* Push a few seconds after the last change, so typing isn't uploaded
+     keystroke by keystroke. */
+  useEffect(() => {
+    if (status !== "open" || !vault?.settings.autoSync) return;
+    if (applyingRemote.current) {
+      applyingRemote.current = false;
+      return;
+    }
+    if ((vault.settings.updatedAt ?? 0) === lastPushed.current) return;
+    const t = setTimeout(() => void syncNow(), 4000);
+    return () => clearTimeout(t);
+  }, [vault, status, syncNow]);
 
   const wipe = useCallback(async () => {
     await clearVault();
@@ -312,9 +416,15 @@ export default function VaultProvider({
       saving,
       syncUp,
       syncDown,
+      syncState,
+      syncMessage,
+      syncNow,
     }),
     [
       restoreFromFile,
+      syncState,
+      syncMessage,
+      syncNow,
       status,
       vault,
       update,
