@@ -16,8 +16,8 @@ export function seedVault(): Vault {
     name: "500ml tub + lid",
     category: "packaging" as const,
     unit: "unit" as const,
-    unitCost: 14,
-    stock: 1000,
+    unitCost: 0,
+    stock: 0,
     reorderLevel: 200,
     supplierId: packSupplier.id,
   };
@@ -36,9 +36,9 @@ export function seedVault(): Vault {
     name: "Gelato base & flavour paste",
     category: "ingredient" as const,
     unit: "L" as const,
-    /* R48.11 of gelato in a 380g tub works out near R127/L of finished product. */
-    unitCost: 126.6,
-    stock: 40,
+    /* No opening stock or cost is invented — both come from your purchases. */
+    unitCost: 0,
+    stock: 0,
     reorderLevel: 15,
     supplierId: supplier.id,
   };
@@ -47,7 +47,7 @@ export function seedVault(): Vault {
     name: "Finished 500ml tub",
     category: "finished" as const,
     unit: "unit" as const,
-    unitCost: 67.08,
+    unitCost: 0,
     stock: 0,
     reorderLevel: 0,
     recipeId: "rec_house",

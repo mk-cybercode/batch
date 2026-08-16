@@ -18,7 +18,7 @@ import {
   recordUsage,
   unpostPurchase,
 } from "@/lib/os/actions";
-import { itemHistory } from "@/lib/os/calc";
+import { itemHistory, netMovements } from "@/lib/os/calc";
 import { ZAR, dateLabel, download, toCSV, today, uid } from "@/lib/os/format";
 import {
   EXPENSE_LABEL,
@@ -429,11 +429,13 @@ export default function Inventory() {
 
 /** Every event that moved this item, so an odd figure can be traced. */
 function HistoryView({ itemId, onClose }: { itemId: string; onClose: () => void }) {
-  const { vault } = useVault();
+  const { vault, update } = useVault();
   if (!vault) return null;
   const item = vault.inventory.find((i) => i.id === itemId);
   if (!item) return null;
   const rows = itemHistory(vault, itemId);
+  const opening = rows.find((r) => r.opening);
+  const net = netMovements(vault, itemId);
 
   return (
     <Modal title={`${item.name} — stock history`} onClose={onClose}>
@@ -475,11 +477,41 @@ function HistoryView({ itemId, onClose }: { itemId: string; onClose: () => void 
       ) : (
         <p className="os-muted os-small">Nothing has moved this item yet.</p>
       )}
-      <p className="os-small os-muted" style={{ marginTop: 12 }}>
-        Closing balance is {Number(item.stock.toFixed(2))} {item.unit}. An
-        opening balance row means stock existed before movements were tracked —
-        use <strong>Use → Counted it</strong> to set the true figure.
-      </p>
+      {opening ? (
+        <Card style={{ marginTop: 14 }}>
+          <p className="os-small" style={{ marginTop: 0 }}>
+            <strong>
+              {Number(opening.delta.toFixed(2))} {item.unit}
+            </strong>{" "}
+            of this stock didn&rsquo;t come from a purchase — it&rsquo;s starter
+            data the app shipped with, or a figure typed in before stock was
+            locked down. Clearing it leaves only what you actually recorded.
+          </p>
+          <div className="os-flex">
+            <button
+              className="os-btn os-btn--sm"
+              onClick={() => {
+                update((d) => {
+                  const t = d.inventory.find((i) => i.id === itemId);
+                  if (t) t.stock = Math.max(0, net);
+                });
+                onClose();
+              }}
+            >
+              Clear it — stock becomes {Number(Math.max(0, net).toFixed(2))}{" "}
+              {item.unit}
+            </button>
+            <span className="os-small os-muted">
+              Keeps every purchase and movement below.
+            </span>
+          </div>
+        </Card>
+      ) : (
+        <p className="os-small os-muted" style={{ marginTop: 12 }}>
+          Closing balance is {Number(item.stock.toFixed(2))} {item.unit} — every
+          unit accounted for by the movements above.
+        </p>
+      )}
     </Modal>
   );
 }
@@ -646,6 +678,7 @@ function PurchaseForm({
 
   const items = vault.inventory.filter((i) => !i.archived);
   const total = lines.reduce((a, l) => a + l.lineTotal, 0);
+  const incomplete = lines.filter((l) => !l.itemId || l.lineTotal <= 0).length;
 
   /** Quantity received is always packs × size, in the item's own unit.
    *  The fallbacks must match what the inputs display, or a line the user
@@ -659,9 +692,11 @@ function PurchaseForm({
   function save() {
     /* A second tap before the dialog closes would post the stock twice. */
     if (submitted.current) return;
+    /* A line left on its defaults has no price — treat it as not filled in
+       rather than quietly adding a unit of free stock. */
     const clean = lines
       .map((l) => ({ ...l, qty: resolvedQty(l) }))
-      .filter((l) => l.itemId && l.qty > 0);
+      .filter((l) => l.itemId && l.qty > 0 && l.lineTotal > 0);
     if (!clean.length) return;
     submitted.current = true;
     const next = {
@@ -873,6 +908,12 @@ function PurchaseForm({
       >
         <Plus size={13} /> Add another item
       </button>
+      {incomplete > 0 && (
+        <p className="os-small" style={{ marginTop: 12, color: "var(--os-caramel)" }}>
+          {incomplete} line{incomplete === 1 ? "" : "s"} still {incomplete === 1 ? "needs" : "need"} an
+          item and a price — {incomplete === 1 ? "it" : "they"} won&rsquo;t be saved.
+        </p>
+      )}
       <p className="os-small os-muted" style={{ marginTop: 12 }}>
         {editing
           ? `Saving reverses the original stock movement and re-applies the edited one. Total ${ZAR(total)}.`

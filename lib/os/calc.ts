@@ -296,6 +296,15 @@ export interface Movement {
   detail: string;
   delta: number;
   balance: number;
+  /** True for the derived opening row, which is not a real movement. */
+  opening?: boolean;
+}
+
+/** Stock accounted for by recorded events — what the item should read. */
+export function netMovements(v: Vault, itemId: string): number {
+  return itemHistory(v, itemId)
+    .filter((m) => !m.opening)
+    .reduce((a, m) => a + m.delta, 0);
 }
 
 /**
@@ -381,9 +390,10 @@ export function itemHistory(v: Vault, itemId: string): Movement[] {
     out.push({
       date: "",
       label: "Opening balance",
-      detail: "Set before movements were tracked",
+      detail: "Not from a purchase — starter data or an old edit",
       delta: opening,
       balance,
+      opening: true,
     });
   }
   for (const r of rows) {
