@@ -225,6 +225,8 @@ export function recordTrial(
   const recipe = v.recipes.find((r) => r.id === recipeId);
   if (!recipe || batches <= 0) return;
   for (const line of recipe.ingredients) {
+    /* Typed-in ingredients aren't stocked, so there is nothing to draw down. */
+    if (!line.itemId) continue;
     recordUsage(
       v,
       line.itemId,

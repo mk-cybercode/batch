@@ -103,11 +103,21 @@ export interface Purchase {
 
 export type RecipeStage = "idea" | "trial" | "testing" | "approved" | "archived";
 
+/**
+ * A recipe line is either linked to inventory — so its cost tracks the real
+ * purchase price and production can draw it down — or typed in freely for
+ * something not stocked, carrying its own name, unit and cost.
+ */
 export interface RecipeIngredient {
-  /** Links to inventory so cost tracks the real purchase price. */
-  itemId: ID;
-  /** Quantity in the item's own unit. */
+  /** Set when the line is linked to an inventory item. */
+  itemId?: ID;
+  /** Quantity used per batch, in the line's unit. */
   qty: number;
+  /** Free-text line only. */
+  name?: string;
+  unit?: Unit;
+  /** Free-text line only — cost of the quantity used, in rand. */
+  cost?: number;
 }
 
 export interface QualityCheck {

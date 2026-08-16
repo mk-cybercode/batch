@@ -22,9 +22,11 @@ import {
   type Recipe,
   type RecipeStage,
   type Survey,
+  type Unit,
 } from "@/lib/os/types";
 
 const STAGES: RecipeStage[] = ["idea", "trial", "testing", "approved", "archived"];
+const UNITS: Unit[] = ["g", "kg", "ml", "L", "unit"];
 
 /** Photos are downscaled before storage so the vault stays small. */
 async function shrink(file: File, max = 900): Promise<string> {
@@ -386,76 +388,173 @@ function RecipeEditor({
           </Field>
         </div>
 
-        <SectionTitle>Ingredients · costed from inventory</SectionTitle>
+        <SectionTitle>Ingredients</SectionTitle>
         {recipe.ingredients.map((line, idx) => {
-          const item = vault.inventory.find((i) => i.id === line.itemId);
+          const item = line.itemId
+            ? vault.inventory.find((i) => i.id === line.itemId)
+            : undefined;
+          const free = !line.itemId;
+          const lineCost = free
+            ? (line.cost ?? 0)
+            : (item?.unitCost ?? 0) * line.qty;
           return (
-            <div className="os-row" key={idx}>
-              <select
-                className="os-select"
-                value={line.itemId}
-                disabled={locked}
-                onChange={(e) =>
-                  set((r) => void (r.ingredients[idx].itemId = e.target.value))
-                }
-              >
-                {ingredients.map((i) => (
-                  <option key={i.id} value={i.id}>
-                    {i.name} ({ZAR(i.unitCost, 2)}/{i.unit})
-                  </option>
-                ))}
-              </select>
-              <input
-                className="os-input"
-                type="number"
-                step="0.01"
-                value={line.qty}
-                disabled={locked}
-                onChange={(e) =>
-                  set((r) => void (r.ingredients[idx].qty = Number(e.target.value)))
-                }
-              />
-              <span className="os-shrink os-small os-muted" style={{ minWidth: 84 }}>
-                {item ? `${item.unit} · ${ZAR(item.unitCost * line.qty, 2)}` : "—"}
-              </span>
-              {!locked && (
-                <button
-                  className="os-btn os-btn--ghost os-btn--sm os-shrink"
-                  onClick={() => set((r) => void r.ingredients.splice(idx, 1))}
-                  aria-label="Remove ingredient"
-                >
-                  <Trash2 size={13} />
-                </button>
-              )}
-            </div>
+            <Card key={idx} style={{ marginBottom: 10 }}>
+              <div className="os-row">
+                <Field label="Ingredient">
+                  <select
+                    className="os-select"
+                    value={free ? "__free" : line.itemId}
+                    disabled={locked}
+                    onChange={(e) =>
+                      set((r) => {
+                        const l = r.ingredients[idx];
+                        if (e.target.value === "__free") {
+                          l.itemId = undefined;
+                          l.name = l.name ?? "";
+                          l.unit = l.unit ?? "g";
+                          l.cost = l.cost ?? 0;
+                        } else {
+                          l.itemId = e.target.value;
+                          l.name = undefined;
+                          l.unit = undefined;
+                          l.cost = undefined;
+                        }
+                      })
+                    }
+                  >
+                    {ingredients.map((i) => (
+                      <option key={i.id} value={i.id}>
+                        {i.name}
+                      </option>
+                    ))}
+                    <option value="__free">— type it in myself —</option>
+                  </select>
+                </Field>
+
+                {free && (
+                  <Field label="Name">
+                    <input
+                      className="os-input"
+                      value={line.name ?? ""}
+                      placeholder="Mint leaves"
+                      disabled={locked}
+                      onChange={(e) =>
+                        set((r) => void (r.ingredients[idx].name = e.target.value))
+                      }
+                    />
+                  </Field>
+                )}
+
+                <Field label={`Quantity${item ? ` (${item.unit})` : ""}`}>
+                  <input
+                    className="os-input"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={line.qty}
+                    disabled={locked}
+                    onChange={(e) =>
+                      set((r) => void (r.ingredients[idx].qty = Number(e.target.value)))
+                    }
+                  />
+                </Field>
+
+                {free && (
+                  <Field label="Unit">
+                    <select
+                      className="os-select"
+                      value={line.unit ?? "g"}
+                      disabled={locked}
+                      onChange={(e) =>
+                        set((r) => void (r.ingredients[idx].unit = e.target.value as Unit))
+                      }
+                    >
+                      {UNITS.map((u) => (
+                        <option key={u} value={u}>
+                          {u}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                )}
+
+                {free ? (
+                  <Field label="Cost of this amount (R)">
+                    <input
+                      className="os-input"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={line.cost ?? 0}
+                      disabled={locked}
+                      onChange={(e) =>
+                        set((r) => void (r.ingredients[idx].cost = Number(e.target.value)))
+                      }
+                    />
+                  </Field>
+                ) : (
+                  <Field label={`Current cost per ${item?.unit ?? "unit"} (R)`}>
+                    <input
+                      className="os-input"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={item?.unitCost ?? 0}
+                      disabled={locked || !item}
+                      onChange={(e) =>
+                        update((d) => {
+                          const t = d.inventory.find((i) => i.id === line.itemId);
+                          if (t) t.unitCost = Number(e.target.value);
+                        })
+                      }
+                    />
+                  </Field>
+                )}
+              </div>
+              <div className="os-flex os-small os-muted">
+                <span>
+                  Costs <strong>{ZAR(lineCost, 2)}</strong> per batch
+                  {!free && item && (
+                    <> · changing the cost updates it everywhere this item is used</>
+                  )}
+                  {free && <> · not tracked in stock</>}
+                </span>
+                {!locked && (
+                  <button
+                    className="os-btn os-btn--ghost os-btn--sm os-right"
+                    onClick={() => set((r) => void r.ingredients.splice(idx, 1))}
+                  >
+                    <Trash2 size={13} /> Remove
+                  </button>
+                )}
+              </div>
+            </Card>
           );
         })}
         {!locked && (
-          <button
-            className="os-btn os-btn--ghost os-btn--sm"
-            onClick={() =>
-              set((r) =>
-                r.ingredients.push({
-                  itemId: ingredients[0]?.id ?? "",
-                  qty: 1,
-                })
-              )
-            }
-            disabled={!ingredients.length}
-          >
-            <Plus size={13} /> Add ingredient
-          </button>
-        )}
-        {!ingredients.length && (
-          <p className="os-small os-muted">
-            Add stock items in Inventory first —{" "}
+          <div className="os-flex">
             <button
               className="os-btn os-btn--ghost os-btn--sm"
-              onClick={() => onNavigate("inventory")}
+              onClick={() =>
+                set((r) =>
+                  r.ingredients.push({ itemId: ingredients[0]?.id, qty: 1 })
+                )
+              }
+              disabled={!ingredients.length}
             >
-              open Inventory
+              <Plus size={13} /> From inventory
             </button>
-          </p>
+            <button
+              className="os-btn os-btn--ghost os-btn--sm"
+              onClick={() =>
+                set((r) =>
+                  r.ingredients.push({ qty: 1, name: "", unit: "g", cost: 0 })
+                )
+              }
+            >
+              <Plus size={13} /> Other ingredient
+            </button>
+          </div>
         )}
 
         <Card>

@@ -37,6 +37,12 @@ export function recipeCost(v: Vault, r: Recipe): RecipeCost {
   let ingredientCost = 0;
   let missingPrice = false;
   for (const line of r.ingredients) {
+    if (!line.itemId) {
+      /* Typed-in ingredient — the cost is carried on the line itself. */
+      if (!line.cost) missingPrice = true;
+      ingredientCost += line.cost ?? 0;
+      continue;
+    }
     const item = v.inventory.find((i) => i.id === line.itemId);
     if (!item) {
       missingPrice = true;
@@ -408,6 +414,8 @@ export function batchesAvailable(v: Vault, r: Recipe): number {
   if (!r.ingredients.length) return 0;
   let min = Infinity;
   for (const line of r.ingredients) {
+    /* Typed-in ingredients aren't stocked, so they don't limit a batch. */
+    if (!line.itemId) continue;
     const item = v.inventory.find((i) => i.id === line.itemId);
     if (!item || line.qty <= 0) continue;
     min = Math.min(min, Math.floor(item.stock / line.qty));
