@@ -14,6 +14,7 @@ import type {
   SalesChannel,
   Vault,
 } from "./types";
+import { CHANNEL_LABEL, MOVEMENT_LABEL } from "./types";
 import { monthKey } from "./format";
 
 /* ------------------------------------------------------------------ */
@@ -287,6 +288,109 @@ export function lowStock(v: Vault): InventoryItem[] {
   return v.inventory.filter(
     (i) => !i.archived && i.reorderLevel > 0 && i.stock <= i.reorderLevel
   );
+}
+
+export interface Movement {
+  date: string;
+  label: string;
+  detail: string;
+  delta: number;
+  balance: number;
+}
+
+/**
+ * Every event that touched an item's stock, oldest first, with a running
+ * balance. Anything the running total can't account for is shown as an
+ * opening balance rather than left to look like stock appearing by itself.
+ */
+export function itemHistory(v: Vault, itemId: string): Movement[] {
+  const item = v.inventory.find((i) => i.id === itemId);
+  if (!item) return [];
+  const rows: Omit<Movement, "balance">[] = [];
+
+  for (const p of v.purchases) {
+    for (const l of p.lines) {
+      if (l.itemId !== itemId) continue;
+      const packs = l.packs ?? l.qty;
+      const size = l.packSize ?? 1;
+      rows.push({
+        date: p.date,
+        label: "Purchase",
+        detail:
+          l.packs && l.packSize && l.packSize !== 1
+            ? `${packs} × ${size} ${item.unit}${p.reference ? ` · ${p.reference}` : ""}`
+            : p.reference || "received",
+        delta: l.qty,
+      });
+    }
+  }
+
+  for (const b of v.production) {
+    const recipe = v.recipes.find((r) => r.id === b.recipeId);
+    if (!recipe || !b.posted) continue;
+    const line = recipe.ingredients.find((x) => x.itemId === itemId);
+    if (line) {
+      rows.push({
+        date: b.date,
+        label: "Production",
+        detail: `${b.batches} batch${b.batches === 1 ? "" : "es"} of ${recipe.name}`,
+        delta: -line.qty * b.batches,
+      });
+    }
+    if (recipe.outputItemId === itemId) {
+      rows.push({
+        date: b.date,
+        label: "Produced",
+        detail: `${recipe.name} v${recipe.version}`,
+        delta: b.unitsProduced,
+      });
+    }
+  }
+
+  for (const s of v.sales) {
+    if (!s.posted) continue;
+    for (const l of s.lines) {
+      if (l.itemId !== itemId) continue;
+      rows.push({
+        date: s.date,
+        label: "Sale",
+        detail: CHANNEL_LABEL[s.channel],
+        delta: -l.qty,
+      });
+    }
+  }
+
+  for (const a of v.adjustments) {
+    if (a.itemId !== itemId) continue;
+    rows.push({
+      date: a.date,
+      label: MOVEMENT_LABEL[a.kind],
+      detail: a.reason,
+      delta: a.to - a.from,
+    });
+  }
+
+  rows.sort((x, y) => x.date.localeCompare(y.date));
+  const net = rows.reduce((a, r) => a + r.delta, 0);
+  const opening = item.stock - net;
+
+  const out: Movement[] = [];
+  let balance = 0;
+  if (Math.abs(opening) > 0.0001) {
+    balance = opening;
+    out.push({
+      date: "",
+      label: "Opening balance",
+      detail: "Set before movements were tracked",
+      delta: opening,
+      balance,
+    });
+  }
+  for (const r of rows) {
+    balance += r.delta;
+    out.push({ ...r, balance });
+  }
+  return out;
 }
 
 /** How many more batches the current ingredient stock supports. */

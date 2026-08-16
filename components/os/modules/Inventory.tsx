@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   Download,
+  History,
   MinusCircle,
   Pencil,
   Plus,
@@ -17,6 +18,7 @@ import {
   recordUsage,
   unpostPurchase,
 } from "@/lib/os/actions";
+import { itemHistory } from "@/lib/os/calc";
 import { ZAR, dateLabel, download, toCSV, today, uid } from "@/lib/os/format";
 import {
   EXPENSE_LABEL,
@@ -51,6 +53,7 @@ export default function Inventory() {
   const [buying, setBuying] = useState(false);
   const [editing, setEditing] = useState<Purchase | null>(null);
   const [using, setUsing] = useState<string | null>(null);
+  const [historyFor, setHistoryFor] = useState<string | null>(null);
   if (!vault) return null;
   /* Narrowing doesn't reach into the callbacks below, so bind it once. */
   const v = vault;
@@ -200,8 +203,15 @@ export default function Inventory() {
                       </td>
                       <td className="os-num">{ZAR(i.unitCost, 2)}</td>
                       <td className="os-num">
-                        <strong>{Number(i.stock.toFixed(2))}</strong>{" "}
-                        <span className="os-muted os-small">{i.unit}</span>
+                        <button
+                          className="os-btn os-btn--ghost os-btn--sm"
+                          onClick={() => setHistoryFor(i.id)}
+                          title="Where this stock came from"
+                        >
+                          <strong>{Number(i.stock.toFixed(2))}</strong>
+                          <span className="os-muted os-small">{i.unit}</span>
+                          <History size={12} />
+                        </button>
                       </td>
                       <td className="os-num">{ZAR(i.stock * i.unitCost)}</td>
                       <td className="os-num">
@@ -410,7 +420,67 @@ export default function Inventory() {
         <PurchaseForm purchase={editing} onClose={() => setEditing(null)} />
       )}
       {using && <UsageForm itemId={using} onClose={() => setUsing(null)} />}
+      {historyFor && (
+        <HistoryView itemId={historyFor} onClose={() => setHistoryFor(null)} />
+      )}
     </div>
+  );
+}
+
+/** Every event that moved this item, so an odd figure can be traced. */
+function HistoryView({ itemId, onClose }: { itemId: string; onClose: () => void }) {
+  const { vault } = useVault();
+  if (!vault) return null;
+  const item = vault.inventory.find((i) => i.id === itemId);
+  if (!item) return null;
+  const rows = itemHistory(vault, itemId);
+
+  return (
+    <Modal title={`${item.name} — stock history`} onClose={onClose}>
+      {rows.length ? (
+        <div className="os-table-wrap">
+          <table className="os-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>What</th>
+                <th>Detail</th>
+                <th className="os-num">Change</th>
+                <th className="os-num">Balance</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r, i) => (
+                <tr key={i}>
+                  <td>{r.date ? dateLabel(r.date) : "—"}</td>
+                  <td>
+                    <Chip tone={r.delta > 0 ? "accent" : undefined}>{r.label}</Chip>
+                  </td>
+                  <td className="os-small os-muted">{r.detail}</td>
+                  <td
+                    className="os-num"
+                    style={{ color: r.delta < 0 ? "var(--os-danger)" : undefined }}
+                  >
+                    {r.delta > 0 ? "+" : ""}
+                    {Number(r.delta.toFixed(2))}
+                  </td>
+                  <td className="os-num">
+                    <strong>{Number(r.balance.toFixed(2))}</strong>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <p className="os-muted os-small">Nothing has moved this item yet.</p>
+      )}
+      <p className="os-small os-muted" style={{ marginTop: 12 }}>
+        Closing balance is {Number(item.stock.toFixed(2))} {item.unit}. An
+        opening balance row means stock existed before movements were tracked —
+        use <strong>Use → Counted it</strong> to set the true figure.
+      </p>
+    </Modal>
   );
 }
 
@@ -571,23 +641,29 @@ function PurchaseForm({
         }))
       : [{ itemId: "", qty: 1, packs: 1, packSize: 1, lineTotal: 0 }]
   );
+  const submitted = useRef(false);
   if (!vault) return null;
 
   const items = vault.inventory.filter((i) => !i.archived);
   const total = lines.reduce((a, l) => a + l.lineTotal, 0);
 
-  /** Quantity received is always packs × size, in the item's own unit. */
+  /** Quantity received is always packs × size, in the item's own unit.
+   *  The fallbacks must match what the inputs display, or a line the user
+   *  never retyped saves as zero and silently disappears. */
   function resolvedQty(l: PurchaseLine) {
     const item = items.find((i) => i.id === l.itemId);
     const size = item?.unit === "unit" ? 1 : (l.packSize ?? 1);
-    return (l.packs ?? 0) * size;
+    return (l.packs ?? 1) * size;
   }
 
   function save() {
+    /* A second tap before the dialog closes would post the stock twice. */
+    if (submitted.current) return;
     const clean = lines
       .map((l) => ({ ...l, qty: resolvedQty(l) }))
       .filter((l) => l.itemId && l.qty > 0);
     if (!clean.length) return;
+    submitted.current = true;
     const next = {
       id: purchase?.id ?? uid("pur_"),
       date,
@@ -788,7 +864,12 @@ function PurchaseForm({
       })}
       <button
         className="os-btn os-btn--ghost os-btn--sm"
-        onClick={() => setLines([...lines, { itemId: "", qty: 1, lineTotal: 0 }])}
+        onClick={() =>
+          setLines([
+            ...lines,
+            { itemId: "", qty: 1, packs: 1, packSize: 1, lineTotal: 0 },
+          ])
+        }
       >
         <Plus size={13} /> Add another item
       </button>
