@@ -414,6 +414,15 @@
   font-size: 12.5px; font-weight: 600;
 }
 
+.os-reveal { position: relative; display: block }
+.os-reveal .os-input { padding-right: 40px }
+.os-reveal button {
+  position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
+  background: none; border: 0; cursor: pointer; color: var(--os-muted);
+  padding: 7px; display: grid; place-items: center;
+}
+.os-reveal button:hover { color: var(--os-text) }
+
 .os-note {
   padding: 12px 15px; border-radius: 11px; background: var(--os-caramel-soft);
   border: 1px solid color-mix(in srgb, var(--os-caramel) 30%, transparent);

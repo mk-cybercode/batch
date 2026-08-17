@@ -5,6 +5,8 @@ import {
   CloudDownload,
   CloudUpload,
   Download,
+  Eye,
+  EyeOff,
   LogOut,
   MailCheck,
   RefreshCw,
@@ -337,23 +339,33 @@ function CloudSignIn({ onDone }: { onDone: (msg: string) => void }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(() => hashError());
   const [awaiting, setAwaiting] = useState("");
+  const [stuck, setStuck] = useState(false);
+  const [show, setShow] = useState(false);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    setStuck(false);
     setBusy(true);
+    /* Whitespace from autofill or a phone keyboard is invisible on screen but
+       is not invisible to the server, so it never reaches it. */
+    const addr = email.trim().toLowerCase();
     try {
       if (mode === "up") {
-        const msg = await cloudRegister(email, password);
-        if (msg === CONFIRM_EMAIL) setAwaiting(email);
+        const msg = await cloudRegister(addr, password);
+        if (msg === CONFIRM_EMAIL) setAwaiting(addr);
         onDone(msg);
       } else {
-        await cloudLogin(email, password);
+        await cloudLogin(addr, password);
         onDone("Signed in — this device is now syncing.");
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : "That didn't work.";
-      if (msg.includes("Send the link again")) setAwaiting(email);
+      if (msg.includes("Send the link again")) setAwaiting(addr);
+      /* An account that exists but won't take the password is a dead end from
+         inside the app — the way out is through the Supabase dashboard. */
+      if (msg.includes("No account with that email") || msg.includes("already has an account"))
+        setStuck(true);
       setError(msg);
     } finally {
       setBusy(false);
@@ -362,6 +374,30 @@ function CloudSignIn({ onDone }: { onDone: (msg: string) => void }) {
 
   return (
     <>
+      {stuck && (
+        <div className="os-note" style={{ marginBottom: 14 }}>
+          <p className="os-small">
+            <strong>Account exists, password won&rsquo;t take?</strong> Then the
+            password saved when it was first made isn&rsquo;t the one being typed
+            now, and there is no way to see it. Clear it out and start again:
+          </p>
+          <p className="os-small">
+            1. Supabase dashboard → <strong>Authentication</strong> →{" "}
+            <strong>Users</strong>
+            <br />
+            2. Find the row for this email, open the <strong>…</strong> menu at
+            its right, choose <strong>Delete user</strong>
+            <br />
+            3. Come back here, <strong>First time here</strong>, and make it
+            again
+          </p>
+          <p className="os-small os-muted" style={{ margin: 0 }}>
+            Nothing of yours is lost — that account only labels the device. Your
+            business data sits encrypted on this laptop and is untouched by any
+            of this.
+          </p>
+        </div>
+      )}
       {awaiting && (
         <div className="os-note" style={{ marginBottom: 14 }}>
           <p className="os-small">
@@ -430,15 +466,28 @@ function CloudSignIn({ onDone }: { onDone: (msg: string) => void }) {
             />
           </Field>
           <Field label="Password">
-            <input
-              className="os-input"
-              type="password"
-              autoComplete={mode === "up" ? "new-password" : "current-password"}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
+            <div className="os-reveal">
+              <input
+                className="os-input"
+                type={show ? "text" : "password"}
+                autoComplete={mode === "up" ? "new-password" : "current-password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+              <button
+                type="button"
+                onClick={() => setShow((v) => !v)}
+                aria-label={show ? "Hide password" : "Show password"}
+              >
+                {show ? <EyeOff size={15} /> : <Eye size={15} />}
+              </button>
+            </div>
           </Field>
         </div>
+        <p className="os-small os-muted" style={{ marginTop: -4 }}>
+          Tap the eye to check what you typed — phone keyboards like to
+          capitalise the first letter, and the password is case-sensitive.
+        </p>
         {error && (
           <p className="os-small" style={{ color: "var(--os-danger)" }}>
             {error}
