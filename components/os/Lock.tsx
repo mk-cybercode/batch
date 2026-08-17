@@ -75,7 +75,7 @@ export default function Lock() {
           {setup
             ? restoring
               ? "Choose the backup file exported from your other device, then enter the passphrase you use there."
-              : "This encrypts everything in the app on this device. There is no reset — write it down somewhere safe."
+              : "This encrypts everything in the app on this device. There is no reset — write it down somewhere safe. Already using Batch on another device? Type that same passphrase here, then sign in under Settings → Sync and your work will come down."
             : "Enter your passphrase to unlock the business."}
         </p>
 

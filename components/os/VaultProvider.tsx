@@ -80,6 +80,44 @@ export function useVault() {
 
 const ADMIN_SALT = "batch-os-admin";
 
+/* Whether this browser has already shaken hands with an account. Kept outside
+   the vault because it describes the device, not the business, and it has to
+   survive the vault being replaced by the copy that comes down. */
+const JOINED = "batch-os-joined:";
+function hasJoined(accountId: string): boolean {
+  try {
+    return localStorage.getItem(JOINED + accountId) === "1";
+  } catch {
+    return false;
+  }
+}
+function markJoined(accountId: string): void {
+  try {
+    localStorage.setItem(JOINED + accountId, "1");
+  } catch {
+    /* Private browsing with storage denied — sync still works, the device
+       just re-runs the join check next time. */
+  }
+}
+
+/** True while a vault holds no work of its own — a device set up but not yet
+ *  used. Only the collections a fresh vault leaves empty are counted; the
+ *  starter suppliers, stock lines, recipe and plan milestones are furniture,
+ *  not work. Such a copy must never overwrite one that has real records. */
+function isUntouched(v: Vault): boolean {
+  return (
+    v.purchases.length === 0 &&
+    v.production.length === 0 &&
+    v.sales.length === 0 &&
+    v.expenses.length === 0 &&
+    v.customers.length === 0 &&
+    v.equipment.length === 0 &&
+    v.surveys.length === 0 &&
+    v.docs.length === 0 &&
+    v.adjustments.length === 0
+  );
+}
+
 /** Returned by cloudRegister when the project still asks for email
  *  confirmation, so the form knows to offer the link again. */
 export const CONFIRM_EMAIL =
@@ -374,15 +412,25 @@ export default function VaultProvider({
           );
           return;
         }
-        if (remote.updatedAt > localStamp) {
+        /* The first time a device meets an account it is joining, not
+           competing: a vault still carrying nothing but its starter furniture
+           takes what is already there, whatever the clocks say. A device set
+           up minutes ago stamps itself the moment anything is touched — a
+           theme change is enough — and would otherwise win the comparison and
+           wipe the real copy. After that first handshake the rule is strictly
+           by timestamp, so work done here is never thrown away. */
+        const joining = !hasJoined(acct.id) && isUntouched(current);
+        if (remote.updatedAt > localStamp || joining) {
           applyingRemote.current = true;
           lastPushed.current = remote.updatedAt;
           setVault({ ...seedVault(), ...opened });
+          markJoined(acct.id);
           setSyncState("idle");
           setSyncMessage("Updated from your other device");
           return;
         }
       }
+      markJoined(acct.id);
 
       if (localStamp !== lastPushed.current) {
         await saveVault(acct.id, await seal(key, salt, current), localStamp);
