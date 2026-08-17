@@ -80,6 +80,11 @@ export function useVault() {
 
 const ADMIN_SALT = "batch-os-admin";
 
+/** Returned by cloudRegister when the project still asks for email
+ *  confirmation, so the form knows to offer the link again. */
+export const CONFIRM_EMAIL =
+  "Account made. Open the confirmation link in your email on this device, then come back here.";
+
 export default function VaultProvider({
   children,
 }: {
@@ -425,7 +430,7 @@ export default function VaultProvider({
 
   const cloudRegister = useCallback(async (email: string, password: string) => {
     const acct = await cloudSignUp(email, password);
-    if (!acct) return "Check your email to confirm the account, then sign in.";
+    if (!acct) return CONFIRM_EMAIL;
     setAccount(acct);
     return "Account created — this device is now syncing.";
   }, []);

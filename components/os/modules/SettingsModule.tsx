@@ -6,13 +6,29 @@ import {
   CloudUpload,
   Download,
   LogOut,
+  MailCheck,
   RefreshCw,
   Trash2,
   Upload,
 } from "lucide-react";
-import { useVault } from "../VaultProvider";
+import { useVault, CONFIRM_EMAIL } from "../VaultProvider";
 import { Card, Field, SectionTitle } from "../ui";
 import { dateLabel } from "@/lib/os/format";
+import { resendConfirmation } from "@/lib/os/cloud";
+
+/** Supabase hands failures back in the URL fragment when a confirmation link
+ *  is stale, so the page can say what went wrong instead of looking blank. */
+function hashError(): string {
+  if (typeof window === "undefined") return "";
+  const hash = new URLSearchParams(window.location.hash.slice(1));
+  const code = hash.get("error_code");
+  if (!code) return "";
+  window.history.replaceState(null, "", window.location.pathname);
+  return code.includes("expired")
+    ? "That confirmation link had expired. Make the account again below, or use “Send the link again”."
+    : (hash.get("error_description") ?? "").replace(/\+/g, " ") ||
+        "The confirmation link didn't work.";
+}
 
 export default function SettingsModule() {
   const {
@@ -319,7 +335,8 @@ function CloudSignIn({ onDone }: { onDone: (msg: string) => void }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState(() => hashError());
+  const [awaiting, setAwaiting] = useState("");
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -327,13 +344,17 @@ function CloudSignIn({ onDone }: { onDone: (msg: string) => void }) {
     setBusy(true);
     try {
       if (mode === "up") {
-        onDone(await cloudRegister(email, password));
+        const msg = await cloudRegister(email, password);
+        if (msg === CONFIRM_EMAIL) setAwaiting(email);
+        onDone(msg);
       } else {
         await cloudLogin(email, password);
         onDone("Signed in — this device is now syncing.");
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "That didn't work.");
+      const msg = err instanceof Error ? err.message : "That didn't work.";
+      if (msg.includes("Send the link again")) setAwaiting(email);
+      setError(msg);
     } finally {
       setBusy(false);
     }
@@ -341,6 +362,33 @@ function CloudSignIn({ onDone }: { onDone: (msg: string) => void }) {
 
   return (
     <>
+      {awaiting && (
+        <div className="os-note" style={{ marginBottom: 14 }}>
+          <p className="os-small">
+            Waiting on the confirmation email sent to <strong>{awaiting}</strong>
+            . Open it on this device — the link only works once and expires after
+            an hour.
+          </p>
+          <button
+            type="button"
+            className="os-btn os-btn--ghost os-btn--sm"
+            disabled={busy}
+            onClick={async () => {
+              setBusy(true);
+              try {
+                await resendConfirmation(awaiting);
+                onDone("A fresh link is on its way.");
+              } catch (err) {
+                setError(err instanceof Error ? err.message : "Couldn't send it.");
+              } finally {
+                setBusy(false);
+              }
+            }}
+          >
+            <MailCheck size={13} /> Send the link again
+          </button>
+        </div>
+      )}
       <div className="os-stages" style={{ marginBottom: 14 }}>
         <button
           type="button"

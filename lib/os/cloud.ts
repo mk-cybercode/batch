@@ -56,12 +56,36 @@ export async function signIn(email: string, password: string): Promise<Account> 
 }
 
 export async function signUp(email: string, password: string): Promise<Account | null> {
-  const { data, error } = await cloud().auth.signUp({ email, password });
+  const { data, error } = await cloud().auth.signUp({
+    email,
+    password,
+    /* Without this, a confirmation email points at whatever Site URL the
+       project was created with — by default http://localhost:3000, which is
+       a development address that exists on nobody's phone. Send people back
+       to the page they signed up on instead. */
+    options: { emailRedirectTo: appUrl() },
+  });
   if (error) throw new Error(friendly(error.message));
   /* With email confirmation on, there is no session until the link is used. */
   return data.session
     ? { id: data.user!.id, email: data.user!.email ?? "" }
     : null;
+}
+
+/** The address of this copy of the app, for confirmation links to return to. */
+function appUrl(): string {
+  if (typeof window === "undefined") return "";
+  return window.location.origin + window.location.pathname;
+}
+
+/** Sends a fresh confirmation email when the first link went stale. */
+export async function resendConfirmation(email: string): Promise<void> {
+  const { error } = await cloud().auth.resend({
+    type: "signup",
+    email,
+    options: { emailRedirectTo: appUrl() },
+  });
+  if (error) throw new Error(friendly(error.message));
 }
 
 export async function signOut(): Promise<void> {
@@ -103,6 +127,10 @@ function friendly(message: string): string {
   if (m.includes("invalid login"))
     return "No account with that email and password. If you haven't made one yet, use “First time here”.";
   if (m.includes("already registered")) return "That email already has an account — sign in instead.";
+  if (m.includes("not confirmed"))
+    return "That account still needs its email confirmed — open the link we sent, or use “Send the link again”.";
+  if (m.includes("expired") || m.includes("otp"))
+    return "That confirmation link has expired — use “Send the link again”.";
   if (m.includes("signups not allowed") || m.includes("sign ups"))
     return "New sign-ups are closed on this project.";
   if (m.includes("password") && m.includes("6"))
