@@ -20,6 +20,39 @@ export const SUPABASE_KEY = "sb_publishable_RNXvhxgWHPHIRckX_yOZJA_qKCoa2fI";
 
 const TABLE = "vaults";
 
+/** The one-time setup, shown in the app so it can be copied straight into the
+ *  Supabase SQL editor. Kept in step with supabase/setup.sql. */
+export const SETUP_SQL = `create table if not exists public.vaults (
+  user_id    uuid primary key references auth.users on delete cascade,
+  sealed     jsonb not null,
+  updated_at bigint not null,
+  modified   timestamptz not null default now()
+);
+
+alter table public.vaults enable row level security;
+
+grant select, insert, update on public.vaults to authenticated;
+
+drop policy if exists "own vault read"   on public.vaults;
+drop policy if exists "own vault insert" on public.vaults;
+drop policy if exists "own vault update" on public.vaults;
+
+create policy "own vault read"
+  on public.vaults for select
+  to authenticated
+  using (auth.uid() = user_id);
+
+create policy "own vault insert"
+  on public.vaults for insert
+  to authenticated
+  with check (auth.uid() = user_id);
+
+create policy "own vault update"
+  on public.vaults for update
+  to authenticated
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);`;
+
 let client: SupabaseClient | null = null;
 
 export function cloud(): SupabaseClient {
@@ -97,10 +130,11 @@ export interface RemoteVault {
   updatedAt: number;
 }
 
-export async function fetchVault(): Promise<RemoteVault | null> {
+export async function fetchVault(userId: string): Promise<RemoteVault | null> {
   const { data, error } = await cloud()
     .from(TABLE)
     .select("sealed, updated_at")
+    .eq("user_id", userId)
     .maybeSingle();
   if (error) throw new Error(friendly(error.message));
   if (!data) return null;
@@ -121,6 +155,11 @@ export async function saveVault(
   if (error) throw new Error(friendly(error.message));
 }
 
+/** Raised whenever the table or its policies are missing, so the settings
+ *  screen knows to put the setup SQL on screen instead of a bare complaint. */
+export const NEEDS_SETUP =
+  "The cloud isn't set up yet — the vaults table and its access rules are missing.";
+
 /** Turns Supabase's wording into something worth reading on screen. */
 function friendly(message: string): string {
   const m = message.toLowerCase();
@@ -135,10 +174,18 @@ function friendly(message: string): string {
     return "New sign-ups are closed on this project.";
   if (m.includes("password") && m.includes("6"))
     return "Use a password of at least 6 characters.";
-  if (m.includes("relation") && m.includes("does not exist"))
-    return "The vaults table hasn't been created yet — run the setup SQL.";
-  if (m.includes("row-level security") || m.includes("permission denied"))
-    return "The database is refusing access — check the row-level policy.";
+  if (
+    (m.includes("relation") && m.includes("does not exist")) ||
+    m.includes("could not find the table") ||
+    m.includes("schema cache")
+  )
+    return NEEDS_SETUP;
+  if (
+    m.includes("row-level security") ||
+    m.includes("permission denied") ||
+    m.includes("violates row-level")
+  )
+    return NEEDS_SETUP;
   if (m.includes("failed to fetch")) return "No connection to the cloud.";
   return message;
 }

@@ -392,7 +392,7 @@ export default function VaultProvider({
 
     setSyncState("syncing");
     try {
-      const remote = await fetchVault();
+      const remote = await fetchVault(acct.id);
       const localStamp = current.settings.updatedAt ?? 0;
 
       if (remote) {

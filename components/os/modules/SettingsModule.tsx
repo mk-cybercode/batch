@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import {
   CloudDownload,
   CloudUpload,
+  Copy,
   Download,
   Eye,
   EyeOff,
@@ -16,7 +17,7 @@ import {
 import { useVault, CONFIRM_EMAIL } from "../VaultProvider";
 import { Card, Field, SectionTitle } from "../ui";
 import { dateLabel } from "@/lib/os/format";
-import { resendConfirmation } from "@/lib/os/cloud";
+import { NEEDS_SETUP, SETUP_SQL, resendConfirmation } from "@/lib/os/cloud";
 
 /** Supabase hands failures back in the URL fragment when a confirmation link
  *  is stale, so the page can say what went wrong instead of looking blank. */
@@ -150,6 +151,7 @@ export default function SettingsModule() {
                 Sign out
               </button>
             </div>
+            {syncMessage === NEEDS_SETUP && <SetupSql />}
             <p className="os-small os-muted" style={{ marginTop: 12 }}>
               What reaches the cloud is encrypted with your passphrase, so the
               database holds nothing readable. On a new device, sign in here and
@@ -324,6 +326,39 @@ export default function SettingsModule() {
       </Card>
 
       {toast && <div className="os-toast">{toast}</div>}
+    </div>
+  );
+}
+
+/** The table and its access rules have to exist before anything can be stored,
+ *  and it is a one-off, so the SQL is put on screen ready to copy rather than
+ *  left in a file nobody will find. */
+function SetupSql() {
+  const [copied, setCopied] = useState(false);
+  return (
+    <div className="os-note" style={{ marginTop: 12 }}>
+      <p className="os-small">
+        <strong>One thing left to do, once.</strong> Open your Supabase project
+        → <strong>SQL Editor</strong> → <strong>New query</strong>, paste this
+        in, and press <strong>Run</strong>. Then come back and press{" "}
+        <strong>Sync now</strong>.
+      </p>
+      <pre className="os-sql">{SETUP_SQL}</pre>
+      <button
+        type="button"
+        className="os-btn os-btn--ghost os-btn--sm"
+        onClick={async () => {
+          try {
+            await navigator.clipboard.writeText(SETUP_SQL);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2400);
+          } catch {
+            setCopied(false);
+          }
+        }}
+      >
+        <Copy size={13} /> {copied ? "Copied" : "Copy the SQL"}
+      </button>
     </div>
   );
 }
