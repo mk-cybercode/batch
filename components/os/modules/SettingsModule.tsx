@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   CloudDownload,
   CloudUpload,
@@ -11,6 +11,7 @@ import {
   LogOut,
   MailCheck,
   RefreshCw,
+  Smartphone,
   Trash2,
   Upload,
 } from "lucide-react";
@@ -162,6 +163,8 @@ export default function SettingsModule() {
           <CloudSignIn onDone={flash} />
         )}
       </Card>
+
+      <InstallCard />
 
       <Card pad>
         <SectionTitle>Google Drive (optional)</SectionTitle>
@@ -327,6 +330,87 @@ export default function SettingsModule() {
 
       {toast && <div className="os-toast">{toast}</div>}
     </div>
+  );
+}
+
+/**
+ * Putting Batch OS on a phone's home screen.
+ *
+ * iOS only offers this from Safari's share sheet and gives a page no way to
+ * ask for it, so the steps have to be written out. Android and desktop Chrome
+ * fire an event that can be turned into a button, which is used when it comes.
+ */
+function InstallCard() {
+  const [prompt, setPrompt] = useState<Event | null>(null);
+  const [installed, setInstalled] = useState(false);
+
+  useEffect(() => {
+    setInstalled(
+      window.matchMedia("(display-mode: standalone)").matches ||
+        /* iOS reports it here rather than through the media query. */
+        (window.navigator as { standalone?: boolean }).standalone === true
+    );
+    const onPrompt = (e: Event) => {
+      e.preventDefault();
+      setPrompt(e);
+    };
+    window.addEventListener("beforeinstallprompt", onPrompt);
+    return () => window.removeEventListener("beforeinstallprompt", onPrompt);
+  }, []);
+
+  return (
+    <Card pad>
+      <SectionTitle>Put it on your phone</SectionTitle>
+      {installed ? (
+        <p className="os-small os-muted">
+          <Smartphone size={14} style={{ verticalAlign: "-2px" }} /> Running from
+          the home screen. It opens without a browser bar and works with no
+          signal — anything recorded offline goes up next time you have one.
+        </p>
+      ) : (
+        <>
+          <p className="os-small os-muted">
+            Batch OS installs straight from the web — its own icon, full screen,
+            no browser bar, and it opens with no signal. There is nothing to
+            download from the App Store.
+          </p>
+          {prompt ? (
+            <button
+              className="os-btn"
+              onClick={async () => {
+                const p = prompt as Event & {
+                  prompt: () => Promise<void>;
+                  userChoice: Promise<{ outcome: string }>;
+                };
+                await p.prompt();
+                await p.userChoice;
+                setPrompt(null);
+              }}
+            >
+              <Smartphone size={15} /> Install Batch OS
+            </button>
+          ) : (
+            <ol className="os-steps os-small">
+              <li>
+                Open this page in <strong>Safari</strong> on your iPhone — on
+                iOS, only Safari can do this.
+              </li>
+              <li>
+                Tap <strong>Share</strong>, the square with the arrow out of it.
+              </li>
+              <li>
+                Scroll down, tap <strong>Add to Home Screen</strong>, then{" "}
+                <strong>Add</strong>.
+              </li>
+              <li>
+                Open the new <strong>Batch.</strong> icon, set your passphrase,
+                then sign in under Sync to pull everything down.
+              </li>
+            </ol>
+          )}
+        </>
+      )}
+    </Card>
   );
 }
 

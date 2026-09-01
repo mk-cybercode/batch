@@ -33,6 +33,21 @@ function Gate() {
 }
 
 export default function AppPage() {
+  /* Registering the worker is what makes this installable and lets it open
+     without a signal. It updates itself on the next visit after a deploy. */
+  useEffect(() => {
+    if (!("serviceWorker" in navigator)) return;
+    const onLoad = () =>
+      navigator.serviceWorker
+        .register("/batch/sw.js", { scope: "/batch/app/" })
+        .catch(() => {
+          /* Blocked, private window, or unsupported — the app still runs. */
+        });
+    if (document.readyState === "complete") onLoad();
+    else window.addEventListener("load", onLoad);
+    return () => window.removeEventListener("load", onLoad);
+  }, []);
+
   return (
     <div className="os">
       <VaultProvider>

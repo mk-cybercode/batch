@@ -78,7 +78,8 @@
   min-height: 100svh;
   display: grid;
   place-items: center;
-  padding: 24px;
+  padding: calc(24px + env(safe-area-inset-top)) 24px
+           calc(24px + env(safe-area-inset-bottom));
   background: #1E1E1E;
 }
 .os-lock-card {
@@ -111,7 +112,8 @@
   flex: none;
   background: var(--os-surface);
   border-right: 1px solid var(--os-line);
-  padding: 20px 14px;
+  padding: calc(20px + env(safe-area-inset-top)) 14px
+           calc(20px + env(safe-area-inset-bottom));
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -146,14 +148,24 @@
 .os-top {
   position: sticky; top: 0; z-index: 20;
   display: flex; align-items: center; gap: 14px;
-  padding: 12px clamp(16px, 3vw, 30px);
+  /* Standing alone on a phone there is no browser bar, so the header itself
+     has to clear the notch. */
+  padding: calc(12px + env(safe-area-inset-top)) clamp(16px, 3vw, 30px) 12px;
+  padding-left: max(clamp(16px, 3vw, 30px), env(safe-area-inset-left));
+  padding-right: max(clamp(16px, 3vw, 30px), env(safe-area-inset-right));
   background: color-mix(in srgb, var(--os-bg) 86%, transparent);
   backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--os-line);
 }
 .os-top h1 { font-size: 19px; margin-right: auto; }
 .os-burger { display: none; background: none; border: 0; padding: 6px; cursor: pointer; color: var(--os-text); }
-.os-content { padding: clamp(18px, 3vw, 30px); flex: 1; }
+.os-content {
+  padding: clamp(18px, 3vw, 30px);
+  padding-bottom: calc(clamp(18px, 3vw, 30px) + env(safe-area-inset-bottom));
+  padding-left: max(clamp(18px, 3vw, 30px), env(safe-area-inset-left));
+  padding-right: max(clamp(18px, 3vw, 30px), env(safe-area-inset-right));
+  flex: 1;
+}
 
 @media (max-width: 900px) {
   .os-side {
@@ -414,6 +426,10 @@
   font-size: 12.5px; font-weight: 600;
 }
 
+.os-steps { margin: 4px 0 0; padding-left: 20px; color: var(--os-soft) }
+.os-steps li { margin-bottom: 7px; line-height: 1.55 }
+.os-steps li::marker { color: var(--os-muted); font-weight: 600 }
+
 .os-field-label {
   display: block; font-size: 11px; font-weight: 600; letter-spacing: .1em;
   text-transform: uppercase; color: var(--os-muted); margin-bottom: 6px;
@@ -450,7 +466,8 @@
 .os-note p { margin: 0 0 9px }
 
 .os-toast {
-  position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+  position: fixed; left: 50%; transform: translateX(-50%);
+  bottom: calc(20px + env(safe-area-inset-bottom));
   background: var(--os-text); color: var(--os-bg); padding: 11px 20px;
   border-radius: 999px; font-size: 13.5px; font-weight: 600; z-index: 200;
   box-shadow: var(--os-shadow-lg); animation: osToast 300ms cubic-bezier(0.16,1,0.3,1) both;
