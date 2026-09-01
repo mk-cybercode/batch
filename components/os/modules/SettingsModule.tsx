@@ -18,7 +18,12 @@ import {
 import { useVault, CONFIRM_EMAIL } from "../VaultProvider";
 import { Card, Field, SectionTitle } from "../ui";
 import { dateLabel } from "@/lib/os/format";
-import { NEEDS_SETUP, SETUP_SQL, resendConfirmation } from "@/lib/os/cloud";
+import {
+  NEEDS_SETUP,
+  PROJECT_PAUSED,
+  SETUP_SQL,
+  resendConfirmation,
+} from "@/lib/os/cloud";
 
 /** Supabase hands failures back in the URL fragment when a confirmation link
  *  is stale, so the page can say what went wrong instead of looking blank. */
@@ -153,6 +158,7 @@ export default function SettingsModule() {
               </button>
             </div>
             {syncMessage === NEEDS_SETUP && <SetupSql />}
+            {syncMessage === PROJECT_PAUSED && <PausedNote />}
             <p className="os-small os-muted" style={{ marginTop: 12 }}>
               What reaches the cloud is encrypted with your passphrase, so the
               database holds nothing readable. On a new device, sign in here and
@@ -334,6 +340,56 @@ export default function SettingsModule() {
 }
 
 /**
+ * A free Supabase project sleeps after about a week idle, and waking it is a
+ * button in their dashboard that nobody would guess at from an error message.
+ */
+function PausedNote() {
+  const { exportBackup, syncNow } = useVault();
+  const [saved, setSaved] = useState(false);
+  return (
+    <div className="os-note" style={{ marginTop: 12 }}>
+      <p className="os-small">
+        <strong>Your work is safe.</strong> Everything is stored on this device
+        and none of it has gone anywhere — only the copy that carries it between
+        your devices is asleep. Free Supabase projects pause after about a week
+        without use.
+      </p>
+      <p className="os-small">
+        1. Go to <strong>supabase.com/dashboard</strong> and open the project
+        <br />
+        2. Press <strong>Restore project</strong> and give it a couple of
+        minutes
+        <br />
+        3. Come back here and press <strong>Sync now</strong>
+      </p>
+      <p className="os-small os-muted">
+        Restoring keeps the data that was there. Opening Batch OS counts as use,
+        so a project in weekly use does not pause.
+      </p>
+      <div className="os-flex">
+        <button
+          type="button"
+          className="os-btn os-btn--ghost os-btn--sm"
+          onClick={() => {
+            exportBackup();
+            setSaved(true);
+          }}
+        >
+          <Download size={13} /> {saved ? "Backup saved" : "Save a backup first"}
+        </button>
+        <button
+          type="button"
+          className="os-btn os-btn--ghost os-btn--sm"
+          onClick={() => void syncNow()}
+        >
+          <RefreshCw size={13} /> Try again
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/**
  * Putting Batch OS on a phone's home screen.
  *
  * iOS only offers this from Safari's share sheet and gives a page no way to
@@ -459,12 +515,14 @@ function CloudSignIn({ onDone }: { onDone: (msg: string) => void }) {
   const [error, setError] = useState(() => hashError());
   const [awaiting, setAwaiting] = useState("");
   const [stuck, setStuck] = useState(false);
+  const [paused, setPaused] = useState(false);
   const [show, setShow] = useState(false);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
     setStuck(false);
+    setPaused(false);
     setBusy(true);
     /* Whitespace from autofill or a phone keyboard is invisible on screen but
        is not invisible to the server, so it never reaches it. */
@@ -485,6 +543,7 @@ function CloudSignIn({ onDone }: { onDone: (msg: string) => void }) {
          inside the app — the way out is through the Supabase dashboard. */
       if (msg.includes("No account with that email") || msg.includes("already has an account"))
         setStuck(true);
+      setPaused(msg === PROJECT_PAUSED);
       setError(msg);
     } finally {
       setBusy(false);
@@ -493,6 +552,7 @@ function CloudSignIn({ onDone }: { onDone: (msg: string) => void }) {
 
   return (
     <>
+      {paused && <PausedNote />}
       {stuck && (
         <div className="os-note" style={{ marginBottom: 14 }}>
           <p className="os-small">

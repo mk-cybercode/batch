@@ -80,24 +80,40 @@ export async function currentAccount(): Promise<Account | null> {
 }
 
 export async function signIn(email: string, password: string): Promise<Account> {
-  const { data, error } = await cloud().auth.signInWithPassword({
-    email,
-    password,
-  });
+  const { data, error } = await reachable(() =>
+    cloud().auth.signInWithPassword({ email, password })
+  );
   if (error) throw new Error(friendly(error.message));
   return { id: data.user!.id, email: data.user!.email ?? "" };
 }
 
+/**
+ * Runs a call that may not reach Supabase at all.
+ *
+ * A paused project rejects the connection, and the client raises that rather
+ * than returning it, so without this the screen shows a raw fetch error where
+ * it should be naming the cause.
+ */
+async function reachable<T>(fn: () => Promise<T>): Promise<T> {
+  try {
+    return await fn();
+  } catch (e) {
+    throw new Error(friendly(e instanceof Error ? e.message : String(e)));
+  }
+}
+
 export async function signUp(email: string, password: string): Promise<Account | null> {
-  const { data, error } = await cloud().auth.signUp({
-    email,
-    password,
-    /* Without this, a confirmation email points at whatever Site URL the
-       project was created with — by default http://localhost:3000, which is
-       a development address that exists on nobody's phone. Send people back
-       to the page they signed up on instead. */
-    options: { emailRedirectTo: appUrl() },
-  });
+  const { data, error } = await reachable(() =>
+    cloud().auth.signUp({
+      email,
+      password,
+      /* Without this, a confirmation email points at whatever Site URL the
+         project was created with — by default http://localhost:3000, which is
+         a development address that exists on nobody's phone. Send people back
+         to the page they signed up on instead. */
+      options: { emailRedirectTo: appUrl() },
+    })
+  );
   if (error) throw new Error(friendly(error.message));
   /* With email confirmation on, there is no session until the link is used. */
   return data.session
@@ -131,11 +147,14 @@ export interface RemoteVault {
 }
 
 export async function fetchVault(userId: string): Promise<RemoteVault | null> {
-  const { data, error } = await cloud()
-    .from(TABLE)
-    .select("sealed, updated_at")
-    .eq("user_id", userId)
-    .maybeSingle();
+  const { data, error } = await reachable(
+    async () =>
+      await cloud()
+        .from(TABLE)
+        .select("sealed, updated_at")
+        .eq("user_id", userId)
+        .maybeSingle()
+  );
   if (error) throw new Error(friendly(error.message));
   if (!data) return null;
   return { sealed: data.sealed as Sealed, updatedAt: Number(data.updated_at) };
@@ -146,12 +165,15 @@ export async function saveVault(
   sealed: Sealed,
   updatedAt: number
 ): Promise<void> {
-  const { error } = await cloud()
-    .from(TABLE)
-    .upsert(
-      { user_id: userId, sealed, updated_at: updatedAt, modified: new Date().toISOString() },
-      { onConflict: "user_id" }
-    );
+  const { error } = await reachable(
+    async () =>
+      await cloud()
+        .from(TABLE)
+        .upsert(
+          { user_id: userId, sealed, updated_at: updatedAt, modified: new Date().toISOString() },
+          { onConflict: "user_id" }
+        )
+  );
   if (error) throw new Error(friendly(error.message));
 }
 
@@ -160,9 +182,26 @@ export async function saveVault(
 export const NEEDS_SETUP =
   "The cloud isn't set up yet — the vaults table and its access rules are missing.";
 
+/**
+ * Raised when the project itself is asleep. Supabase pauses a free project
+ * after about a week without use, and every call then fails at the network
+ * before it ever reaches a table — which reads exactly like being offline
+ * unless it is called by name.
+ */
+export const PROJECT_PAUSED =
+  "The Supabase project is paused or unreachable. Nothing is lost — your data is on this device.";
+
 /** Turns Supabase's wording into something worth reading on screen. */
 function friendly(message: string): string {
   const m = message.toLowerCase();
+  if (
+    m.includes("paused") ||
+    m.includes("project is not active") ||
+    m.includes("503") ||
+    m.includes("540") ||
+    m.includes("service unavailable")
+  )
+    return PROJECT_PAUSED;
   if (m.includes("invalid login"))
     return "No account with that email and password. If you haven't made one yet, use “First time here”.";
   if (m.includes("already registered")) return "That email already has an account — sign in instead.";
@@ -186,6 +225,13 @@ function friendly(message: string): string {
     m.includes("violates row-level")
   )
     return NEEDS_SETUP;
-  if (m.includes("failed to fetch")) return "No connection to the cloud.";
+  /* A paused project refuses the connection outright, so this is the shape
+     the failure usually arrives in. Both causes get named. */
+  if (
+    m.includes("failed to fetch") ||
+    m.includes("networkerror") ||
+    m.includes("load failed")
+  )
+    return PROJECT_PAUSED;
   return message;
 }
