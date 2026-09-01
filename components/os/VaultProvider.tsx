@@ -19,7 +19,14 @@ import {
   seal,
   unseal,
 } from "@/lib/os/crypto";
-import { clearVault, readSealed, writeSealed } from "@/lib/os/store";
+import {
+  clearRemembered,
+  clearVault,
+  readRemembered,
+  readSealed,
+  writeRemembered,
+  writeSealed,
+} from "@/lib/os/store";
 import { seedVault } from "@/lib/os/seed";
 import { ensureToken, pullVault, pushVault, signIn } from "@/lib/os/drive";
 import {
@@ -41,9 +48,12 @@ interface Ctx {
   vault: Vault | null;
   /** Applies a mutation to a draft and persists it. */
   update: (fn: (draft: Vault) => void) => void;
-  create: (passphrase: string) => Promise<void>;
-  unlock: (passphrase: string) => Promise<boolean>;
-  lock: () => void;
+  create: (passphrase: string, stayUnlocked?: boolean) => Promise<void>;
+  unlock: (passphrase: string, stayUnlocked?: boolean) => Promise<boolean>;
+  lock: () => Promise<void>;
+  /** This device opens without being asked for the passphrase. */
+  remembered: boolean;
+  setStayUnlocked: (on: boolean) => Promise<boolean>;
   /** Documents gate — separate from the login passphrase. */
   adminUnlocked: boolean;
   setAdminPassword: (pw: string) => Promise<void>;
@@ -145,6 +155,7 @@ export default function VaultProvider({
   const [syncMessage, setSyncMessage] = useState("");
   const [account, setAccount] = useState<Account | null>(null);
   const accountRef = useRef<Account | null>(null);
+  const [remembered, setRemembered] = useState(false);
 
   useEffect(() => {
     vaultRef.current = vault;
@@ -159,10 +170,27 @@ export default function VaultProvider({
     void currentAccount().then(setAccount).catch(() => setAccount(null));
   }, []);
 
+  /* Open straight up when this device has been told to stay unlocked, and
+     fall back to asking if that passphrase no longer fits the vault. */
   useEffect(() => {
-    readSealed()
-      .then((s) => setStatus(s ? "locked" : "setup"))
-      .catch(() => setStatus("setup"));
+    let cancelled = false;
+    (async () => {
+      const sealed = await readSealed().catch(() => null);
+      if (cancelled) return;
+      if (!sealed) return setStatus("setup");
+      const pass = await readRemembered().catch(() => null);
+      if (cancelled) return;
+      if (pass && (await openWith(pass, sealed))) {
+        setRemembered(true);
+        return;
+      }
+      setStatus("locked");
+    })();
+    return () => {
+      cancelled = true;
+    };
+    /* openWith is stable; naming it here would re-run this on every render. */
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   /* Debounced write — typing in a form shouldn't re-encrypt on every keypress. */
@@ -199,7 +227,7 @@ export default function VaultProvider({
     });
   }, []);
 
-  const create = useCallback(async (passphrase: string) => {
+  const create = useCallback(async (passphrase: string, stayUnlocked = false) => {
     const salt = randomSalt();
     const key = await deriveKey(passphrase, salt);
     keyRef.current = key;
@@ -207,27 +235,65 @@ export default function VaultProvider({
     passRef.current = passphrase;
     const fresh = seedVault();
     await writeSealed(await seal(key, salt, fresh));
+    if (stayUnlocked) {
+      await writeRemembered(passphrase);
+      setRemembered(true);
+    }
     setVault(fresh);
     setStatus("open");
   }, []);
 
-  const unlock = useCallback(async (passphrase: string) => {
-    const sealed = await readSealed();
-    if (!sealed) return false;
-    const salt = saltFromSealed(sealed);
-    const key = await deriveKey(passphrase, salt);
-    const data = await unseal<Vault>(key, sealed);
-    if (!data) return false;
-    keyRef.current = key;
-    saltRef.current = salt;
-    passRef.current = passphrase;
-    /* Backfill collections added after this vault was created. */
-    setVault({ ...seedVault(), ...data });
-    setStatus("open");
+  /** Opens a sealed vault with a passphrase, or reports that it doesn't fit. */
+  const openWith = useCallback(
+    async (passphrase: string, sealed: Sealed): Promise<boolean> => {
+      const salt = saltFromSealed(sealed);
+      const key = await deriveKey(passphrase, salt);
+      const data = await unseal<Vault>(key, sealed);
+      if (!data) return false;
+      keyRef.current = key;
+      saltRef.current = salt;
+      passRef.current = passphrase;
+      /* Backfill collections added after this vault was created. */
+      setVault({ ...seedVault(), ...data });
+      setStatus("open");
+      return true;
+    },
+    []
+  );
+
+  const unlock = useCallback(
+    async (passphrase: string, stayUnlocked = false) => {
+      const sealed = await readSealed();
+      if (!sealed) return false;
+      if (!(await openWith(passphrase, sealed))) return false;
+      if (stayUnlocked) {
+        await writeRemembered(passphrase);
+        setRemembered(true);
+      }
+      return true;
+    },
+    [openWith]
+  );
+
+  /** Turns staying unlocked on or off for this device. */
+  const setStayUnlocked = useCallback(async (on: boolean) => {
+    if (on) {
+      const pass = passRef.current;
+      if (!pass) return false;
+      await writeRemembered(pass);
+      setRemembered(true);
+      return true;
+    }
+    await clearRemembered();
+    setRemembered(false);
     return true;
   }, []);
 
-  const lock = useCallback(() => {
+  const lock = useCallback(async () => {
+    /* Locking has to mean locked, so it also stops this device letting
+       itself back in. */
+    await clearRemembered();
+    setRemembered(false);
     keyRef.current = null;
     saltRef.current = null;
     passRef.current = null;
@@ -496,6 +562,8 @@ export default function VaultProvider({
 
   const wipe = useCallback(async () => {
     await clearVault();
+    await clearRemembered();
+    setRemembered(false);
     keyRef.current = null;
     saltRef.current = null;
     setVault(null);
@@ -529,6 +597,8 @@ export default function VaultProvider({
       cloudRegister,
       cloudLogin,
       cloudLogout,
+      remembered,
+      setStayUnlocked,
     }),
     [
       restoreFromFile,
@@ -554,6 +624,8 @@ export default function VaultProvider({
       saving,
       syncUp,
       syncDown,
+      remembered,
+      setStayUnlocked,
     ]
   );
 

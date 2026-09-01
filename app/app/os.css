@@ -486,3 +486,14 @@
     transition-duration: .01ms !important;
   }
 }
+
+/* Consent-style checkbox: the label carries the explanation, so the row wraps
+   as a block rather than sitting on one line. */
+.os-check {
+  display: flex; align-items: flex-start; gap: 10px;
+  font-size: 13.5px; line-height: 1.5; cursor: pointer;
+}
+.os-check input {
+  margin: 2px 0 0; width: 16px; height: 16px; flex: none;
+  accent-color: var(--os-accent); cursor: pointer;
+}

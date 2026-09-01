@@ -56,6 +56,8 @@ export default function SettingsModule() {
     cloudRegister,
     cloudLogin,
     cloudLogout,
+    remembered,
+    setStayUnlocked,
   } = useVault();
   const fileRef = useRef<HTMLInputElement>(null);
   const [toast, setToast] = useState("");
@@ -303,8 +305,31 @@ export default function SettingsModule() {
           passphrase. Business documents carry a second password, set the first
           time you open that section.
         </p>
+        <label className="os-check" style={{ marginBottom: 12 }}>
+          <input
+            type="checkbox"
+            checked={remembered}
+            onChange={async (e) => {
+              const on = e.target.checked;
+              await setStayUnlocked(on);
+              flash(
+                on
+                  ? "This device will open without asking."
+                  : "You'll be asked for the passphrase on this device again."
+              );
+            }}
+          />
+          <span>
+            Stay unlocked on this device
+            <span className="os-small os-muted">
+              {" "}
+              — Batch OS opens straight to the dashboard here. Your data stays
+              encrypted and other devices still need the passphrase once.
+            </span>
+          </span>
+        </label>
         <div className="os-flex">
-          <button className="os-btn os-btn--ghost" onClick={lock}>
+          <button className="os-btn os-btn--ghost" onClick={() => void lock()}>
             <LogOut size={15} /> Lock now
           </button>
           {!confirmWipe ? (

@@ -18,6 +18,8 @@ export default function Lock() {
   const [error, setError] = useState("");
   const [mode, setMode] = useState<"new" | "restore">("new");
   const [backup, setBackup] = useState<{ name: string; text: string } | null>(null);
+  /* Most people are opening their own laptop or phone, so this starts on. */
+  const [stay, setStay] = useState(true);
   const fileRef = useRef<HTMLInputElement>(null);
   const setup = status === "setup";
 
@@ -43,13 +45,13 @@ export default function Lock() {
       if (pass.length < 8) return setError("Use at least 8 characters.");
       if (pass !== confirm) return setError("The two entries don't match.");
       setBusy(true);
-      await create(pass);
+      await create(pass, stay);
       setBusy(false);
       return;
     }
 
     setBusy(true);
-    const ok = await unlock(pass);
+    const ok = await unlock(pass, stay);
     setBusy(false);
     if (!ok) {
       setError("That passphrase doesn't open this vault.");
@@ -129,6 +131,24 @@ export default function Lock() {
                 autoComplete="new-password"
                 onChange={(e) => setConfirm(e.target.value)}
               />
+            </label>
+          )}
+
+          {!restoring && (
+            <label className="os-check">
+              <input
+                type="checkbox"
+                checked={stay}
+                onChange={(e) => setStay(e.target.checked)}
+              />
+              <span>
+                Stay unlocked on this device
+                <span className="os-small os-muted">
+                  {" "}
+                  — don&rsquo;t ask again here. Use it on devices only you can
+                  get into.
+                </span>
+              </span>
             </label>
           )}
 
