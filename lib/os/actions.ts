@@ -7,6 +7,7 @@
  */
 
 import type {
+  Funding,
   MovementKind,
   ProductionBatch,
   Purchase,
@@ -39,6 +40,7 @@ export function postPurchase(v: Vault, purchase: Purchase) {
     existing.date = purchase.date;
     existing.category = purchase.category;
     existing.fundedFromCapital = purchase.fundedFromCapital;
+    existing.funding = purchase.funding;
     existing.supplierId = purchase.supplierId;
   } else {
     v.expenses.push({
@@ -51,6 +53,7 @@ export function postPurchase(v: Vault, purchase: Purchase) {
       amount: total,
       supplierId: purchase.supplierId,
       fundedFromCapital: purchase.fundedFromCapital,
+      funding: purchase.funding,
       purchaseId: purchase.id,
     });
   }
@@ -139,10 +142,13 @@ export function unpostSale(v: Vault, sale: Sale) {
 export function postEquipmentPurchase(
   v: Vault,
   equipmentId: string,
-  fundedFromCapital = true
+  funding?: Funding
 ) {
   const eq = v.equipment.find((e) => e.id === equipmentId);
   if (!eq) return;
+  /* Left unsaid, the whole price comes off the loan — the common case, and
+     what the register did before funding could be split. */
+  const paid = funding ?? { capital: eq.purchasePrice };
   const existing = eq.expenseId
     ? v.expenses.find((e) => e.id === eq.expenseId)
     : undefined;
@@ -151,6 +157,8 @@ export function postEquipmentPurchase(
     existing.date = eq.purchaseDate;
     existing.description = eq.name;
     existing.supplierId = eq.supplierId;
+    existing.funding = paid;
+    existing.fundedFromCapital = undefined;
     return;
   }
   const expense = {
@@ -160,7 +168,7 @@ export function postEquipmentPurchase(
     description: eq.name,
     amount: eq.purchasePrice,
     supplierId: eq.supplierId,
-    fundedFromCapital,
+    funding: paid,
   };
   v.expenses.push(expense);
   eq.expenseId = expense.id;

@@ -414,6 +414,17 @@
   font-size: 12.5px; font-weight: 600;
 }
 
+.os-field-label {
+  display: block; font-size: 11px; font-weight: 600; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--os-muted); margin-bottom: 6px;
+}
+
+.os-split {
+  display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 2px 0 10px;
+  font-size: 12.5px; color: var(--os-muted);
+}
+.os-split strong { color: var(--os-text); font-variant-numeric: tabular-nums }
+
 .os-sql {
   margin: 0 0 10px; padding: 12px 14px; border-radius: 9px; max-height: 260px;
   overflow: auto; background: var(--os-surface); border: 1px solid var(--os-line);

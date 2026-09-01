@@ -9,6 +9,7 @@
 
 import type {
   ExpenseCategory,
+  Funding,
   InventoryItem,
   Recipe,
   SalesChannel,
@@ -16,6 +17,55 @@ import type {
 } from "./types";
 import { CHANNEL_LABEL, MOVEMENT_LABEL } from "./types";
 import { monthKey } from "./format";
+
+/* ------------------------------------------------------------------ */
+/* Funding                                                             */
+/* ------------------------------------------------------------------ */
+
+export interface FundingSplit {
+  /** Drawn against the loan capital. */
+  capital: number;
+  /** Put in by the owner personally. */
+  owner: number;
+  /** Paid for out of the money the business itself has made. */
+  trading: number;
+}
+
+/**
+ * Splits one outlay across the three ways it can be paid for.
+ *
+ * Entries made before funding could be split carry a plain flag, so that is
+ * honoured as "all of it from the loan". Anything the split does not account
+ * for came out of trading cash, which keeps the three parts adding up to the
+ * amount however the record was written.
+ */
+export function fundingOf(e: {
+  amount: number;
+  funding?: Funding;
+  fundedFromCapital?: boolean;
+}): FundingSplit {
+  if (!e.funding) {
+    return e.fundedFromCapital
+      ? { capital: e.amount, owner: 0, trading: 0 }
+      : { capital: 0, owner: 0, trading: e.amount };
+  }
+  const capital = Math.max(0, e.funding.capital ?? 0);
+  const owner = Math.max(0, e.funding.owner ?? 0);
+  return {
+    capital,
+    owner,
+    trading: Math.max(0, e.amount - capital - owner),
+  };
+}
+
+/** The label a split earns in a ledger, shortest true description first. */
+export function fundingLabel(split: FundingSplit): string {
+  const parts: string[] = [];
+  if (split.capital > 0) parts.push("Capital");
+  if (split.owner > 0) parts.push("Own money");
+  if (split.trading > 0) parts.push("Trading");
+  return parts.join(" + ") || "Trading";
+}
 
 /* ------------------------------------------------------------------ */
 /* Recipes                                                             */
@@ -101,6 +151,7 @@ export interface Financials {
   operatingCosts: number;
   netProfit: number;
   capitalSpend: number;
+  ownerSpend: number;
   tradingSpend: number;
   cashAvailable: number;
   inventoryValue: number;
@@ -135,12 +186,18 @@ export function financials(v: Vault, month?: string): Financials {
   }
   const grossProfit = revenue - cogs;
 
-  const capitalSpend = v.expenses
-    .filter((e) => e.fundedFromCapital && inPeriod(e.date))
-    .reduce((a, e) => a + e.amount, 0);
-  const tradingSpend = v.expenses
-    .filter((e) => !e.fundedFromCapital && inPeriod(e.date))
-    .reduce((a, e) => a + e.amount, 0);
+  /* Every outlay splits three ways. Only the trading share is an operating
+     cost — the other two are the business being built, not run. */
+  let capitalSpend = 0;
+  let ownerSpend = 0;
+  let tradingSpend = 0;
+  for (const e of v.expenses) {
+    if (!inPeriod(e.date)) continue;
+    const f = fundingOf(e);
+    capitalSpend += f.capital;
+    ownerSpend += f.owner;
+    tradingSpend += f.trading;
+  }
 
   const operatingCosts = tradingSpend + channelCosts;
   const netProfit = grossProfit - operatingCosts;
@@ -150,11 +207,14 @@ export function financials(v: Vault, month?: string): Financials {
     .reduce((a, i) => a + i.stock * i.unitCost, 0);
   const assetValue = v.equipment.reduce((a, e) => a + e.purchasePrice, 0);
 
-  /* Cash is a running position, so it always spans all time. */
-  const allCapital = v.capital.reduce(
-    (a, c) => a + (c.kind === "repayment" ? -c.amount : c.amount),
-    0
-  );
+  /* Cash is a running position, so it always spans all time. Money the owner
+     paid straight to a supplier goes in and out on the same day, so it is
+     counted on both sides and nets to nothing. */
+  const allCapital =
+    v.capital.reduce(
+      (a, c) => a + (c.kind === "repayment" ? -c.amount : c.amount),
+      0
+    ) + v.expenses.reduce((a, e) => a + fundingOf(e).owner, 0);
   const allSpend = v.expenses.reduce((a, e) => a + e.amount, 0);
   const allRevenue = v.sales.reduce(
     (a, s) =>
@@ -181,6 +241,7 @@ export function financials(v: Vault, month?: string): Financials {
     operatingCosts,
     netProfit,
     capitalSpend,
+    ownerSpend,
     tradingSpend,
     cashAvailable,
     inventoryValue,
@@ -200,10 +261,18 @@ export function expensesByCategory(v: Vault, month?: string) {
 
 /** Capital still unspent — drives the purchase planner. */
 export function capitalRemaining(v: Vault): number {
-  const drawn = v.expenses
-    .filter((e) => e.fundedFromCapital)
-    .reduce((a, e) => a + e.amount, 0);
+  const drawn = v.expenses.reduce((a, e) => a + fundingOf(e).capital, 0);
   return v.settings.loanCapital - drawn;
+}
+
+/** Everything the owner has put in personally: contributions recorded on their
+ *  own, plus the parts of purchases paid for out of their own pocket. */
+export function ownerCapital(v: Vault): number {
+  const contributions = v.capital
+    .filter((c) => c.kind === "owner")
+    .reduce((a, c) => a + c.amount, 0);
+  const inPurchases = v.expenses.reduce((a, e) => a + fundingOf(e).owner, 0);
+  return contributions + inPurchases;
 }
 
 /* ------------------------------------------------------------------ */
