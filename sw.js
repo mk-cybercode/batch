@@ -1,5 +1,5 @@
 /*
- * Keeps Batch OS usable on a phone with no signal.
+ * Keeps Fiori OS usable on a phone with no signal.
  *
  * The whole app is static files and the data lives on the device, so caching
  * the shell is enough to open and work offline. Navigations are served from

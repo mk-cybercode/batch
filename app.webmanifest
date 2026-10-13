@@ -1,13 +1,13 @@
 {
-  "name": "Batch OS",
-  "short_name": "Batch OS",
-  "description": "The operating system for Batch. Gelato.",
+  "name": "Fiori OS",
+  "short_name": "Fiori OS",
+  "description": "The operating system for Fiori Gelato.",
   "start_url": "/batch/app/",
   "scope": "/batch/app/",
   "display": "standalone",
   "orientation": "portrait-primary",
-  "background_color": "#F2EFE7",
-  "theme_color": "#F2EFE7",
+  "background_color": "#f4eee5",
+  "theme_color": "#073c8c",
   "icons": [
     {
       "src": "/batch/assets/icon-192.png",
