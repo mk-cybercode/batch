@@ -10,8 +10,13 @@
  * Supabase and Google are never cached — sync must always see the truth.
  */
 
-const VERSION = "batch-os-v2";
-const SHELL = "/batch/app/";
+const VERSION = "fiori-os-v3";
+
+/* This file is served at <base>/sw.js, so the base path is whatever is left
+   when its own name is taken off. That keeps the worker correct whether the
+   site sits at a domain root or under a folder. */
+const BASE = self.location.pathname.replace(/sw\.js$/, "");
+const SHELL = BASE + "app/";
 
 /*
  * Caching the page alone leaves it unstyled and dead offline: its styles and
@@ -27,7 +32,7 @@ async function precache() {
   const html = await response.text();
   const wanted = new Set();
   for (const [, url] of html.matchAll(/(?:src|href)="([^"]+)"/g)) {
-    if (url.startsWith("/batch/_next/") || url.startsWith("/batch/assets/")) {
+    if (url.startsWith(BASE + "_next/") || url.startsWith(BASE + "assets/")) {
       wanted.add(url);
     }
   }
